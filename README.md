@@ -8,6 +8,9 @@ A simple and fast module for animated scrolling maps for your new or existing ga
 
 If you find this useful, please consider making a donation to help support development:  
 
+![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
+![License](https://img.shields.io/badge/license-GPL--3.0-green.svg)
+
 ---
 
 ## Introduction
