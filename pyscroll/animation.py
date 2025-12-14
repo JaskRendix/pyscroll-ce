@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Set, Tuple, Union
+from typing import Union
 
 from pygame import Surface
+
+from pyscroll.common import Vector3DInt
 
 TimeLike = Union[float, int]
 
@@ -42,7 +44,7 @@ class AnimationToken:
 
     def __init__(
         self,
-        positions: Set[Tuple[int, int, int]],
+        positions: set[Vector3DInt],
         frames: Sequence[AnimationFrame],
         initial_time: float = 0.0,
         loop: bool = True,

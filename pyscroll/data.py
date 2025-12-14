@@ -22,8 +22,8 @@ try:
 except ImportError:
     pass
 
-from .animation import AnimationFrame, AnimationToken
-from .common import RectLike, Vector2DInt, rect_to_bb
+from pyscroll.animation import AnimationFrame, AnimationToken
+from pyscroll.common import RectLike, Vector2DInt, Vector3DInt, rect_to_bb
 
 __all__ = (
     "PyscrollDataAdapter",
@@ -59,7 +59,7 @@ class PyscrollDataAdapter:
         # list of animation tokens
         self._animation_queue: list[AnimationToken] = []
         # mapping of tile substitutions when animated
-        self._animated_tile: dict[tuple[int, int, int], Surface] = {}
+        self._animated_tile: dict[Vector3DInt, Surface] = {}
         # track the tiles on screen with animations
         self._tracked_tiles = set()
 
@@ -183,7 +183,7 @@ class PyscrollDataAdapter:
             # locations of an animation, but searching for their locations
             # is slow. so it will be updated as the map is drawn.
 
-            positions: set[tuple[int, int, int]] = set()
+            positions: set[Vector3DInt] = set()
             ani = AnimationToken(positions, frames, self._last_time)
             self._animation_map[gid] = ani
             heappush(self._animation_queue, ani)

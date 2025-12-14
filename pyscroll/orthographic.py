@@ -10,12 +10,18 @@ from typing import TYPE_CHECKING, Optional
 import pygame
 from pygame import Rect, Surface
 
-from .common import RectLike, Vector2D, Vector2DInt, surface_clipping_context
-from .quadtree import FastQuadTree
+from pyscroll.common import (
+    RectLike,
+    Vector2D,
+    Vector2DInt,
+    Vector3DInt,
+    surface_clipping_context,
+)
+from pyscroll.quadtree import FastQuadTree
 
 if TYPE_CHECKING:
-    from .animation import AnimationToken
-    from .data import PyscrollDataAdapter
+    from pyscroll.animation import AnimationToken
+    from pyscroll.data import PyscrollDataAdapter
 
 log = logging.getLogger(__file__)
 
@@ -38,7 +44,7 @@ class BufferedRenderer:
         data: PyscrollDataAdapter,
         size: Vector2DInt,
         clamp_camera: bool = True,
-        colorkey: Optional[tuple[int, int, int]] = None,
+        colorkey: Optional[Vector3DInt] = None,
         alpha: bool = False,
         time_source: Callable[[], float] = time.time,
         scaling_function: Callable[

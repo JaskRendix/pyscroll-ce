@@ -1,14 +1,12 @@
 import logging
 
-from pyscroll.common import Vector2D, Vector2DInt
+from pyscroll.common import Vector2D, Vector2DInt, Vector3DInt
 from pyscroll.orthographic import BufferedRenderer
 
 log = logging.getLogger(__file__)
 
 
-def vector3_to_iso(
-    vector3: tuple[int, int, int], offset: tuple[int, int] = (0, 0)
-) -> tuple[int, int]:
+def vector3_to_iso(vector3: Vector3DInt, offset: Vector2DInt = (0, 0)) -> Vector2DInt:
     """
     Convert 3D cartesian coordinates to isometric coordinates.
     """
@@ -20,9 +18,7 @@ def vector3_to_iso(
     )
 
 
-def vector2_to_iso(
-    vector2: tuple[int, int], offset: tuple[int, int] = (0, 0)
-) -> tuple[int, int]:
+def vector2_to_iso(vector2: Vector2DInt, offset: Vector2DInt = (0, 0)) -> Vector2DInt:
     """
     Convert 2D cartesian coordinates to isometric coordinates.
     """

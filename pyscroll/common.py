@@ -8,6 +8,7 @@ from pygame import Rect, Surface, Vector2
 RectLike = Union[Rect, tuple[Any, Any, Any, Any]]
 Vector2D = Union[tuple[float, float], tuple[int, int], Vector2]
 Vector2DInt = tuple[int, int]
+Vector3DInt = tuple[int, int, int]
 
 
 @contextmanager
