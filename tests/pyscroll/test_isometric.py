@@ -1,5 +1,7 @@
 import unittest
+
 from pyscroll.isometric import vector2_to_iso, vector3_to_iso
+
 
 class IsometricFunctionsTest(unittest.TestCase):
     def test_vector3_to_iso(self):

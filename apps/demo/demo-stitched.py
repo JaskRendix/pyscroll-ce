@@ -6,6 +6,7 @@ Rendering demo showing 9 TMX maps rendered at once
 Very basic!  No animations.
 
 """
+
 from __future__ import annotations
 
 from pathlib import Path

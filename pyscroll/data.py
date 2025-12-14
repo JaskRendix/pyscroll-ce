@@ -4,6 +4,7 @@ This file contains a few classes for accessing data
 If you are developing your own map format, please use this
 as a template.  Just fill in values that work for your game.
 """
+
 from __future__ import annotations
 
 import time

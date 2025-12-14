@@ -8,6 +8,7 @@ https://github.com/bitcraft/pytmx
 
 pip install pytmx
 """
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -10,6 +10,7 @@ Window is resizable.
 See the "Quest" tutorial for a more simple use with
 pygame sprites and groups.
 """
+
 import collections
 import logging
 
