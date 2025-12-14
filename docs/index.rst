@@ -6,7 +6,7 @@
 pyscroll
 ========
 
-for Python 3.9+ and Pygame 1.9
+for Python 3.10+ and Pygame 1.9
 
 A simple, fast module for adding scrolling maps to your new or existing game.
 Includes support to load and render maps in TMX format from the Tiled map editor.
