@@ -14,7 +14,8 @@ from itertools import product
 from typing import Any, Optional
 
 import pygame
-from pygame import Rect, Surface
+from pygame.rect import Rect
+from pygame.surface import Surface
 
 try:
     # optional pytmx support

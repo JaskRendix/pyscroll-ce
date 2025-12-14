@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Union
 
-from pygame import Surface
+from pygame.surface import Surface
 
 from pyscroll.common import Vector3DInt
 

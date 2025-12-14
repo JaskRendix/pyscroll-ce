@@ -8,7 +8,8 @@ from itertools import chain, product
 from typing import TYPE_CHECKING, Optional
 
 import pygame
-from pygame import Rect, Surface
+from pygame.rect import Rect
+from pygame.surface import Surface
 
 from pyscroll.common import (
     RectLike,

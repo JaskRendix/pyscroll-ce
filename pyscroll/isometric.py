@@ -1,4 +1,7 @@
 import logging
+import math
+
+from pygame.rect import Rect
 
 from pyscroll.common import Vector2D, Vector2DInt, Vector3DInt
 from pyscroll.orthographic import BufferedRenderer
@@ -49,10 +52,6 @@ class IsometricBufferedRenderer(BufferedRenderer):
         :param view_size: (int, int): size of the draw area
         :return: None
         """
-        import math
-
-        from pygame import Rect
-
         tw, th = self.data.tile_size
         mw, mh = self.data.map_size
         buffer_tile_width = int(math.ceil(view_size[0] / tw) + 2) * 2
