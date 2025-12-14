@@ -39,29 +39,24 @@ def generate_tile_rects(n, bounds=(0, 0, 800, 600), tile_size=(32, 32)) -> list[
     ]
 
 
-def run_benchmark(
-    depth: int, item_count: int, query_count: int, tile_size=(32, 32)
-) -> dict:
-    items = generate_tile_rects(item_count, tile_size=tile_size)
+def run_benchmark(depth, item_count, query_count, repeats=3):
+    build_times, query_times = [], []
+    for _ in range(repeats):
+        items = generate_tile_rects(item_count)
+        start_build = timeit.default_timer()
+        tree = FastQuadTree(items, depth=depth)
+        build_times.append(timeit.default_timer() - start_build)
 
-    # Measure build time
-    start_build = timeit.default_timer()
-    tree = FastQuadTree(items, depth=depth)
-    build_time = timeit.default_timer() - start_build
-
-    # Measure query time
-    test_rect = Rect(400, 300, tile_size[0] * 2, tile_size[1] * 2)
-    start_query = timeit.default_timer()
-    for _ in range(query_count):
-        tree.hit(test_rect)
-    query_time = timeit.default_timer() - start_query
+        test_rect = Rect(400, 300, 64, 64)
+        start_query = timeit.default_timer()
+        for _ in range(query_count):
+            tree.hit(test_rect)
+        query_times.append(timeit.default_timer() - start_query)
 
     return {
         "depth": depth,
-        "items": item_count,
-        "queries": query_count,
-        "build_time": build_time,
-        "query_time": query_time,
+        "build_time": sum(build_times) / repeats,
+        "query_time": sum(query_times) / repeats,
     }
 
 

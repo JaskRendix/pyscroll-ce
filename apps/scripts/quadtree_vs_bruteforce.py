@@ -1,16 +1,8 @@
 """
-Performance Benchmark: FastQuadTree vs Brute-force Collision Detection
+Multi-scale Performance Benchmark: FastQuadTree vs Brute-force
 
-This script compares the speed and efficiency of two collision detection
-methods in a 2D space:
-1. FastQuadTree - a spatial partitioning structure optimized for querying
-    rectangular areas.
-2. Brute-force - a simple approach that checks every rectangle for intersection.
-
-Features:
-- Generates a random set of rectangular objects within a defined area.
-- Performs repeated collision queries using both methods.
-- Measures and prints build/setup time and query time for each method.
+Runs benchmarks with increasing numbers of rectangles to show how
+quadtree query time scales compared to brute-force.
 """
 
 import random
@@ -34,36 +26,42 @@ def brute_force_hit(items: list[Rect], target: Rect) -> list[Rect]:
     return [r for r in items if r.colliderect(target)]
 
 
-def benchmark(item_count=5000, query_count=1000, depth=4):
-    print(f"\nBenchmark: {item_count} rects, {query_count} queries, depth={depth}")
-
-    # Generate test data
+def run_benchmark(item_count, query_count=1000, depth=4):
     items = generate_rects(item_count)
-    test_rect = Rect(400, 300, 64, 64)
+    queries = [
+        Rect(random.randint(0, 800), random.randint(0, 600), 64, 64)
+        for _ in range(query_count)
+    ]
 
-    # Benchmark Quadtree
+    # Build quadtree
     start = timeit.default_timer()
     tree = FastQuadTree(items, depth=depth)
     build_time = timeit.default_timer() - start
 
+    # Quadtree queries
     start = timeit.default_timer()
-    for _ in range(query_count):
-        tree.hit(test_rect)
-    quadtree_query_time = timeit.default_timer() - start
+    for q in queries:
+        tree.hit(q)
+    quadtree_time = timeit.default_timer() - start
 
-    # Benchmark Brute-force
+    # Brute force queries
     start = timeit.default_timer()
-    for _ in range(query_count):
-        brute_force_hit(items, test_rect)
-    brute_query_time = timeit.default_timer() - start
+    for q in queries:
+        brute_force_hit(items, q)
+    brute_time = timeit.default_timer() - start
 
-    print(
-        f"FastQuadTree:\n  Build Time:  {build_time:.6f}s\n  Query Time:  {quadtree_query_time:.6f}s"
-    )
-    print(
-        f"Brute-force:\n  Setup Time:  negligible\n  Query Time:  {brute_query_time:.6f}s\n"
-    )
+    return build_time, quadtree_time, brute_time
+
+
+def benchmark_series(sizes=(1000, 5000, 10000, 20000), query_count=1000, depth=4):
+    print(f"\nBenchmarking with query_count={query_count}, depth={depth}\n")
+    for n in sizes:
+        build, qt_time, bf_time = run_benchmark(n, query_count, depth)
+        print(f"{n:6d} rects:")
+        print(f"  Build Time:   {build:.6f}s")
+        print(f"  Quadtree Time:{qt_time:.6f}s")
+        print(f"  Brute-force:  {bf_time:.6f}s\n")
 
 
 if __name__ == "__main__":
-    benchmark()
+    benchmark_series()
