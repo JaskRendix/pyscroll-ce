@@ -12,7 +12,7 @@ def vector3_to_iso(
     """
     Convert 3D cartesian coordinates to isometric coordinates.
     """
-    if len(vector3) != 3:
+    if not isinstance(vector3, tuple) or len(vector3) != 3:
         raise ValueError("Input tuple must have exactly 3 elements")
     return (
         (vector3[0] - vector3[1]) + offset[0],
@@ -26,7 +26,7 @@ def vector2_to_iso(
     """
     Convert 2D cartesian coordinates to isometric coordinates.
     """
-    if len(vector2) != 2:
+    if not isinstance(vector2, tuple) or len(vector2) != 2:
         raise ValueError("Input tuple must have exactly 2 elements")
     return (
         (vector2[0] - vector2[1]) + offset[0],
