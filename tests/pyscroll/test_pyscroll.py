@@ -1,8 +1,9 @@
 import unittest
 from unittest import mock
 
-import pygame
+from pygame.rect import Rect
 
+from pyscroll.common import Vector2DInt
 from pyscroll.data import PyscrollDataAdapter
 from pyscroll.orthographic import BufferedRenderer
 
@@ -20,7 +21,7 @@ class DummyDataAdapter(PyscrollDataAdapter):
 
 
 class DummyBufferer:
-    _tile_view = pygame.Rect(2, 2, 2, 2)
+    _tile_view = Rect(2, 2, 2, 2)
     _clear_color = None
     _buffer = mock.Mock()
     _clear_surface = mock.Mock()
@@ -32,7 +33,7 @@ class TestTileQueue(unittest.TestCase):
         self.mock = DummyBufferer()
         self.queue = BufferedRenderer._queue_edge_tiles
 
-    def verify_queue(self, expected: set[tuple[int, int]]) -> None:
+    def verify_queue(self, expected: set[Vector2DInt]) -> None:
         queue = {i[:2] for i in self.mock._tile_queue}
         self.assertEqual(queue, set(expected))
 

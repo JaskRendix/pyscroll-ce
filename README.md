@@ -1,7 +1,7 @@
 pyscroll
 ========
 
-For Python 3.10+ and pygame 2.0+
+For Python 3.10+ and pygame-ce 2.5.6+
 
 __pygame-ce is supported__
 
