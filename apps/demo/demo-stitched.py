@@ -31,9 +31,9 @@ from pygame.sprite import Sprite
 from pygame.surface import Surface
 from pytmx.util_pygame import load_pygame  # type: ignore
 
-import pyscroll
 from pyscroll.data import MapAggregator, TiledMapData
 from pyscroll.group import PyscrollGroup
+from pyscroll.orthographic import BufferedRenderer
 
 # define configuration variables here
 CURRENT_DIR = Path(__file__).parent
@@ -115,7 +115,7 @@ class QuestGame:
             tmx_data = load_pygame(str(path))
             world_data.add_map(TiledMapData(tmx_data), offset)
 
-        self.map_layer = pyscroll.orthographic.BufferedRenderer(
+        self.map_layer = BufferedRenderer(
             data=world_data,
             size=screen.get_size(),
             clamp_camera=True,
