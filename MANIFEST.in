@@ -1,2 +1,13 @@
+include README.md
+include LICENSE
+include pyproject.toml
+include setup.py
+
+recursive-include pyscroll *.py
+
+recursive-include apps/tutorial *.py
+
+exclude .gitignore
 prune .github
-exclude .gitignore 
+prune tests
+prune docs/_build
