@@ -68,8 +68,6 @@ python setup.py install
 For a gentle introduction, open `apps/tutorial/quest.py`. It demonstrates how to use `PyscrollGroup` for efficient rendering.  
 The Quest demo shows how to draw maps with pytmx, render layers quickly, and handle sprite layering (e.g., the Hero being covered when moving under certain tiles).
 
-The [repo wiki](https://github.com/bitcraft/pyscroll/wiki) contains more in‑depth explanations, including sprite animation techniques. Contributions are welcome.
-
 ---
 
 ## Example Use with pytmx
