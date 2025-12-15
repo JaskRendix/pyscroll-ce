@@ -81,7 +81,6 @@ class PyscrollDataAdapter:
 
         Args:
             tile_view: Rect representing tiles on the screen
-
         """
         new_tiles = list()
 
@@ -165,7 +164,6 @@ class PyscrollDataAdapter:
 
         Args:
             tiles: Reference to the tile view
-
         """
         pass
 
@@ -174,7 +172,6 @@ class PyscrollDataAdapter:
         Reload animation information.
 
         PyscrollDataAdapter.get_animations must be implemented
-
         """
         self._update_time()
         self._tracked_gids: set[int] = set()
@@ -209,7 +206,6 @@ class PyscrollDataAdapter:
             x: x coordinate
             y: y coordinate
             l: layer
-
         """
         position: Vector3DInt = (x, y, l)
 
@@ -245,7 +241,6 @@ class PyscrollDataAdapter:
             x: x coordinate
             y: y coordinate
             l: layer
-
         """
         raise NotImplementedError
 
@@ -257,7 +252,6 @@ class PyscrollDataAdapter:
 
         Args:
             id:
-
         """
         raise NotImplementedError
 
@@ -280,7 +274,6 @@ class PyscrollDataAdapter:
           This will be something accessible using _get_tile_image_by_id
 
           Duration should be in milliseconds
-
         """
         raise NotImplementedError
 
@@ -295,11 +288,12 @@ class PyscrollDataAdapter:
             x: x coordinate
             y: y coordinate
             l: layer
-
         """
         raise NotImplementedError
 
-    def get_tile_images_by_rect(self, rect: RectLike):
+    def get_tile_images_by_rect(
+        self, view: RectLike
+    ) -> Iterable[tuple[int, int, int, Surface]]:
         """
         Given a 2d area, return generator of tile images inside.
 
@@ -318,10 +312,9 @@ class PyscrollDataAdapter:
         Not like python 'Range': should include the end index!
 
         Args:
-            rect: Rect-like object that defines tiles to draw
-
+            view: Rect-like object that defines tiles to draw
         """
-        x1, y1, x2, y2 = rect_to_bb(rect)
+        x1, y1, x2, y2 = rect_to_bb(view)
         for layer in self.visible_tile_layers:
             for y, x in product(range(y1, y2 + 1), range(x1, x2 + 1)):
                 tile = self.get_tile_image(x, y, layer)
@@ -437,13 +430,15 @@ class TiledMapData(PyscrollDataAdapter):
     def _get_tile_image_by_id(self, id: int) -> Surface:
         return self.tmx.images[id]
 
-    def get_tile_images_by_rect(self, rect: RectLike):
+    def get_tile_images_by_rect(
+        self, view: RectLike
+    ) -> Iterable[tuple[int, int, int, Surface]]:
         def rev(seq: list[int], start: int, stop: int) -> enumerate[int]:
             if start < 0:
                 start = 0
             return enumerate(seq[start : stop + 1], start)
 
-        x1, y1, x2, y2 = rect_to_bb(rect)
+        x1, y1, x2, y2 = rect_to_bb(view)
         images = self.tmx.images
         layers = self.tmx.layers
         at = self._animated_tile
@@ -485,7 +480,7 @@ class MapAggregator(PyscrollDataAdapter):
         self.tile_size = tile_size
         self._normalize = normalize
         self.map_size: tuple[int, int] = (0, 0)
-        self.maps: list[tuple[PyscrollDataAdapter, pygame.Rect, int]] = []
+        self.maps: list[tuple[PyscrollDataAdapter, Rect, int]] = []
         self._min_x: int = 0
         self._min_y: int = 0
         self._animation_map: dict[int, AnimationToken] = {}
@@ -574,10 +569,10 @@ class MapAggregator(PyscrollDataAdapter):
         return sorted(layers)
 
     def get_tile_images_by_rect(
-        self, view: pygame.Rect
+        self, view: RectLike
     ) -> Iterable[tuple[int, int, int, Surface]]:
         """Yield tile images within the view, with adjusted coords and layers."""
-        view = pygame.Rect(view)
+        view = Rect(view)
         sorted_maps = sorted(self.maps, key=lambda m: m[2])  # sort by z offset
 
         for data, rect, z in sorted_maps:
