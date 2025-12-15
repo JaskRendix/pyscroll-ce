@@ -214,29 +214,23 @@ class PyscrollDataAdapter:
         position: Vector3DInt = (x, y, l)
 
         try:
-            # 1. Animated and currently tracked: return the correct frame
             return self._animated_tile[position]
 
         except KeyError:
-            # 2. Not currently tracked as animated. Get the base image.
             image = self._get_tile_image(x, y, l)
 
-            # 3. Check if this tile should be animated
             if self._animation_map:
                 gid = self._get_tile_gid(x, y, l)
                 if gid in self._animation_map:
-                    # This tile is animated, but not yet tracked.
-                    # Add its position to the relevant AnimationToken.
                     token = self._animation_map[gid]
                     token.positions.add(position)
 
-                    # Set initial animated image (first frame) for immediate use
                     self._animated_tile[position] = token.frames[0].image
                     return self._animated_tile[position]
 
-                return image  # return the base image (static tile)
+                return image
 
-            return image  # return the base image (no animations loaded)
+            return image
 
     def _get_tile_image(self, x: int, y: int, l: int) -> Surface:
         """
@@ -390,11 +384,18 @@ class TiledMapData(PyscrollDataAdapter):
                 yield gid, frames
 
     def convert_surfaces(self, parent: Surface, alpha: bool = False) -> None:
-        images = list()
+        """
+        Convert all TMX images to match the display format.
+
+        Args:
+            parent: A reference surface (usually the display surface).
+            alpha: If True, use convert_alpha; otherwise use convert.
+        """
+        images = []
         for i in self.tmx.images:
             try:
                 if alpha:
-                    images.append(i.convert_alpha(parent))
+                    images.append(i.convert_alpha())
                 else:
                     images.append(i.convert(parent))
             except AttributeError:
