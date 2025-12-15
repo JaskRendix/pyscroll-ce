@@ -613,3 +613,93 @@ class MapAggregator(PyscrollDataAdapter):
 
     def __len__(self) -> int:
         return len(self.maps)
+
+
+class ProceduralData(PyscrollDataAdapter):
+    """
+    A concrete PyscrollDataAdapter subclass for generating simple, procedural
+    maps on the fly. Used primarily for testing and demonstration.
+
+    Generates a map with three layers: [0: Ground, 1: Detail, 2: Overlay].
+    """
+
+    _TILE_SIZE: Vector2DInt = (32, 32)
+    _MAP_WIDTH: int = 40
+    _MAP_HEIGHT: int = 30
+    _LAYER_COUNT: int = 3
+
+    _GID_GRASS: int = 1
+    _GID_WATER: int = 2
+    _GID_ROCK: int = 3
+    _GID_ALT_WATER: int = 999
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._surfaces: dict[int, Surface] = {}
+        self._create_surfaces()
+        self._animated_tile: dict[tuple[int, int, int], Any] = {}
+        self._animation_map: dict[int, Any] = {}
+        self._animation_queue: list[Any] = []
+        self._tracked_gids: set[int] = set()
+
+    @property
+    def tile_size(self) -> Vector2DInt:
+        return self._TILE_SIZE
+
+    @property
+    def map_size(self) -> Vector2DInt:
+        return (self._MAP_WIDTH, self._MAP_HEIGHT)
+
+    @property
+    def visible_tile_layers(self) -> list[int]:
+        return list(range(self._LAYER_COUNT))
+
+    def _create_surfaces(self) -> None:
+        """Create and store tile surfaces."""
+        w, h = self.tile_size
+
+        def make_surface(color: str) -> Surface:
+            surf = Surface((w, h))
+            surf.fill(pygame.Color(color))
+            return surf
+
+        self._surfaces[self._GID_GRASS] = make_surface("#799a46")
+        self._surfaces[self._GID_WATER] = make_surface("#4a82a6")
+        self._surfaces[self._GID_ROCK] = make_surface("#555555")
+        self._surfaces[self._GID_ALT_WATER] = make_surface("#62a2cc")
+
+    def reload_data(self) -> None:
+        """No external data to reload."""
+        pass
+
+    def _get_tile_image_by_id(self, id: int) -> Optional[Surface]:
+        return self._surfaces.get(id)
+
+    def _get_tile_gid(self, x: int, y: int, l: int) -> Optional[int]:
+        if not self.is_on_map(x, y):
+            return None
+
+        if l == 0:
+            return self._GID_GRASS if (x + y) % 2 == 0 else self._GID_WATER
+        elif l == 1:
+            if x % 5 == 0 and y % 5 == 0:
+                return self._GID_ROCK
+        return None
+
+    def _get_tile_image(self, x: int, y: int, l: int) -> Optional[Surface]:
+        gid = self._get_tile_gid(x, y, l)
+        return self._surfaces.get(gid) if gid is not None else None
+
+    def get_animations(self) -> list[Any]:
+        """
+        Demonstrates a simple animation: water alternates between two colors.
+        """
+        return [
+            (
+                self._GID_WATER,
+                [
+                    (self._GID_WATER, 500),
+                    (self._GID_ALT_WATER, 500),
+                ],
+            )
+        ]
