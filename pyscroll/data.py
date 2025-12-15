@@ -470,133 +470,130 @@ class TiledMapData(PyscrollDataAdapter):
 
 class MapAggregator(PyscrollDataAdapter):
     """
-    Combine multiple data sources with an offset
+    Combine multiple data sources with an offset.
 
-    Currently this is just in a test phase.
-
-    Has the following limitations:
-    - Tile sizes must be the same for all maps
-    - No tile animations
-    - Sprites cannot be under layers
-    - Cannot remove maps once added
-
+    Improvements:
+    - Correct layer offset handling
+    - Simplified normalization of positions
+    - Support for animations
+    - Delegation for tile image lookups
+    - Dynamic map removal with re-normalization
     """
 
     def __init__(self, tile_size: Vector2DInt) -> None:
         super().__init__()
         self.tile_size = tile_size
-        self.map_size = 0, 0
-        self.maps: list[tuple[PyscrollDataAdapter, Rect, int]] = []
-        self._min_x = 0
-        self._min_y = 0
-
-    def _get_tile_image(self, x: int, y: int, l: int) -> Optional[Surface]:
-        """
-        Required for sprite collation - not implemented.
-        """
-        pass
-
-    def _get_tile_image_by_id(self, id: int) -> None:
-        """
-        Required for sprite collation - not implemented.
-        """
-        pass
+        self.map_size: tuple[int, int] = (0, 0)
+        self.maps: list[tuple[PyscrollDataAdapter, pygame.Rect, int]] = []
+        self._min_x: int = 0
+        self._min_y: int = 0
+        self._animation_map: dict[int, AnimationToken] = {}
+        self._tracked_gids: set[int] = set()
 
     def add_map(
         self, data: PyscrollDataAdapter, offset: Vector2DInt, layer: int = 0
     ) -> None:
-        """
-        Add map data and position it with an offset.
-
-        Args:
-            data: Data Adapter, such as TiledMapData
-            offset: Where the upper-left corner is, in tiles
-            layer: The layer of the map
-        """
         if data.tile_size != self.tile_size:
             raise ValueError("Tile sizes must be the same for all maps.")
 
         rect = pygame.Rect(offset, data.map_size)
-        self._min_x = min(self._min_x, offset[0])
-        self._min_y = min(self._min_y, offset[1])
-
-        # the renderer cannot deal with negative tile coordinates,
-        # so we must move all the offsets if there is a negative so
-        # that all the tile coordinates are >= (0, 0)
         self.maps.append((data, rect, layer))
-        self._adjust_map_positions(offset)
+
+        # Update min coords and normalize if needed
+        self._min_x = min(self._min_x, rect.left)
+        self._min_y = min(self._min_y, rect.top)
+        self._normalize_positions()
         self._update_map_size()
 
     def remove_map(self, data: PyscrollDataAdapter) -> None:
-        """
-        Removes a map from the aggregator.
-
-        Args:
-            data: The data adapter of the map to remove.
-        """
-        if data not in [m[0] for m in self.maps]:
-            raise ValueError("Map is not in the aggregator")
+        initial_len = len(self.maps)
         self.maps = [m for m in self.maps if m[0] != data]
+        if len(self.maps) == initial_len:
+            raise ValueError("Map is not in the aggregator")
+
+        self._re_normalize_positions()
+
+    def _normalize_positions(self) -> None:
+        """Shift maps so that top-left is always (0,0)."""
+        if self._min_x < 0 or self._min_y < 0:
+            shift_x = -self._min_x
+            shift_y = -self._min_y
+            for _, rect, _ in self.maps:
+                rect.move_ip(shift_x, shift_y)
+            self._min_x, self._min_y = 0, 0
+
+    def _re_normalize_positions(self) -> None:
+        """Recalculate normalization after removal."""
+        if not self.maps:
+            self._min_x, self._min_y = 0, 0
+            self.map_size = (0, 0)
+            return
+
+        self._min_x = min(rect.left for _, rect, _ in self.maps)
+        self._min_y = min(rect.top for _, rect, _ in self.maps)
+        self._normalize_positions()
         self._update_map_size()
 
-    def _adjust_map_positions(self, offset: Vector2DInt) -> None:
-        """Adjusts map positions based on negative offsets."""
-        ox = self._min_x - offset[0]
-        oy = self._min_y - offset[1]
-        if ox > 0 or oy > 0:
-            for _, rect, _ in self.maps:
-                rect.move_ip((ox, oy))
-        else:
-            for _, rect, _ in self.maps:
-                rect.move_ip(-self._min_x, -self._min_y)
-
     def _update_map_size(self) -> None:
-        """Updates the overall map size."""
         mx = 0
         my = 0
         for _, rect, _ in self.maps:
             mx = max(mx, rect.right)
             my = max(my, rect.bottom)
-        self.map_size = mx, my
-
-    def get_animations(self) -> None:
-        """
-        Get animations - not implemented
-        """
-        pass
-
-    def reload_data(self) -> None:
-        """
-        Reload the tiles - not implemented
-        """
-        pass
+        self.map_size = (mx, my)
 
     @property
     def visible_tile_layers(self) -> list[int]:
-        """
-        Returns a sorted list of all visible tile layers from all added maps.
-        """
+        """Return all visible layers adjusted by aggregator offsets."""
         layers = set()
-        for data, rect, z in self.maps:
-            layers.update(list(data.visible_tile_layers))
+        for data, _, z in self.maps:
+            layers.update([l + z for l in data.visible_tile_layers])
         return sorted(layers)
 
     def get_tile_images_by_rect(
         self, view: pygame.Rect
     ) -> Iterable[tuple[int, int, int, Surface]]:
-        """
-        Yields tile images within the given view rectangle from all added maps.
-
-        Args:
-            view: Rect-like object defining the tile view.
-        """
+        """Yield tile images within the view, with adjusted coords and layers."""
         view = pygame.Rect(view)
-        for data, rect, z in self.maps:
+        sorted_maps = sorted(self.maps, key=lambda m: m[2])  # sort by z offset
+
+        for data, rect, z in sorted_maps:
             ox, oy = rect.topleft
             clipped = rect.clip(view).move(-ox, -oy)
             if clipped.width > 0 and clipped.height > 0:
                 for x, y, l, image in data.get_tile_images_by_rect(clipped):
-                    yield x + ox, y + oy, l, image
+                    yield x + ox, y + oy, l + z, image
+
+    def _get_tile_image(self, x: int, y: int, l: int) -> Optional[Surface]:
+        """Delegate tile image lookup to the correct sub-map."""
+        for data, rect, z in self.maps:
+            if rect.collidepoint(x, y) and (l - z) in data.visible_tile_layers:
+                local_x = x - rect.left
+                local_y = y - rect.top
+                local_l = l - z
+                return data._get_tile_image(local_x, local_y, local_l)
+        return None
+
+    def _get_tile_image_by_id(self, id: int) -> Optional[Surface]:
+        """Delegate image lookup by ID to child maps (first match)."""
+        for data, _, _ in self.maps:
+            try:
+                return data._get_tile_image_by_id(id)
+            except Exception:
+                continue
+        return None
+
+    def get_animations(self) -> Iterable[tuple[int, list[tuple[int, int]]]]:
+        """Aggregate animations from all child maps."""
+        for data, _, _ in self.maps:
+            if hasattr(data, "get_animations"):
+                yield from data.get_animations()
+
+    def reload_data(self) -> None:
+        """Reload all child maps."""
+        for data, _, _ in self.maps:
+            if hasattr(data, "reload_data"):
+                data.reload_data()
 
     def __repr__(self) -> str:
         return f"MapAggregator(tile_size={self.tile_size}, maps={self.maps})"

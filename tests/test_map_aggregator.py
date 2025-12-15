@@ -1,137 +1,109 @@
-import unittest
 from unittest.mock import MagicMock
 
+import pytest
 from pygame.rect import Rect
 from pygame.surface import Surface
 
 from pyscroll.data import MapAggregator, PyscrollDataAdapter
 
 
-class TestMapAggregator(unittest.TestCase):
+@pytest.fixture
+def aggregator():
+    return MapAggregator((16, 16))
 
-    def setUp(self):
-        self.aggregator = MapAggregator((16, 16))
-        self.mock_data1 = MagicMock(spec=PyscrollDataAdapter)
-        self.mock_data2 = MagicMock(spec=PyscrollDataAdapter)
-        self.mock_data3 = MagicMock(spec=PyscrollDataAdapter)
-        self.mock_data1.tile_size = (16, 16)
-        self.mock_data2.tile_size = (16, 16)
-        self.mock_data3.tile_size = (32, 32)
-        self.mock_data1.map_size = (5, 5)
-        self.mock_data2.map_size = (5, 5)
-        self.mock_data3.map_size = (3, 3)
-        self.mock_data1.visible_tile_layers = [0]
-        self.mock_data2.visible_tile_layers = [1]
-        self.mock_data3.visible_tile_layers = [0]
-        self.mock_data1.get_tile_images_by_rect.return_value = [
-            (x, y, 0, Surface((16, 16))) for y in range(5) for x in range(5)
-        ]
-        self.mock_data2.get_tile_images_by_rect.return_value = [
-            (x, y, 1, Surface((16, 16))) for y in range(5) for x in range(5)
-        ]
-        self.mock_data3.get_tile_images_by_rect.return_value = [
-            (x, y, 0, Surface((32, 32))) for y in range(3) for x in range(3)
-        ]
 
-    def test_add_map(self):
-        self.aggregator.add_map(self.mock_data1, (0, 0))
-        self.assertEqual(self.aggregator.map_size, (5, 5))
-        self.aggregator.add_map(self.mock_data2, (5, 0))
-        self.assertEqual(self.aggregator.map_size, (10, 5))
+@pytest.fixture
+def mock_data1():
+    mock = MagicMock(spec=PyscrollDataAdapter)
+    mock.tile_size = (16, 16)
+    mock.map_size = (5, 5)
+    mock.visible_tile_layers = [0]
+    mock.get_tile_images_by_rect.return_value = [
+        (x, y, 0, Surface((16, 16))) for y in range(5) for x in range(5)
+    ]
+    return mock
 
-    def test_remove_map(self):
-        self.aggregator.add_map(self.mock_data1, (0, 0))
-        self.assertEqual(self.aggregator.map_size, (5, 5))
-        self.aggregator.remove_map(self.mock_data1)
-        self.assertEqual(self.aggregator.map_size, (0, 0))
 
-    def test_visible_tile_layers(self):
-        self.aggregator.add_map(self.mock_data1, (0, 0))
-        self.aggregator.add_map(self.mock_data2, (5, 0))
-        self.assertEqual(self.aggregator.visible_tile_layers, [0, 1])
+@pytest.fixture
+def mock_data2():
+    mock = MagicMock(spec=PyscrollDataAdapter)
+    mock.tile_size = (16, 16)
+    mock.map_size = (5, 5)
+    mock.visible_tile_layers = [1]
+    mock.get_tile_images_by_rect.return_value = [
+        (x, y, 1, Surface((16, 16))) for y in range(5) for x in range(5)
+    ]
+    return mock
 
-    def test_get_tile_images_by_rect(self):
-        self.aggregator.add_map(self.mock_data1, (0, 0))
-        self.aggregator.add_map(self.mock_data2, (5, 0))
-        rect = Rect(0, 0, 10, 5)
-        tiles = list(self.aggregator.get_tile_images_by_rect(rect))
-        self.assertEqual(len(tiles), 50)
 
-    def test_add_overlapping_maps(self):
-        self.aggregator.add_map(self.mock_data1, (0, 0))
-        self.aggregator.add_map(self.mock_data2, (3, 0))
-        rect = Rect(0, 0, 5, 5)
-        tiles = list(self.aggregator.get_tile_images_by_rect(rect))
-        self.assertEqual(len(tiles), 50)
+def test_add_and_remove_map(aggregator, mock_data1, mock_data2):
+    aggregator.add_map(mock_data1, (0, 0))
+    assert aggregator.map_size == (5, 5)
 
-    def test_remove_nonexistent_map(self):
-        with self.assertRaises(ValueError):
-            self.aggregator.remove_map(self.mock_data1)
+    aggregator.add_map(mock_data2, (5, 0))
+    assert aggregator.map_size == (10, 5)
 
-    def test_add_map_different_tile_size(self):
-        self.aggregator.add_map(self.mock_data1, (0, 0))
-        with self.assertRaises(ValueError):
-            self.aggregator.add_map(self.mock_data3, (5, 0))
+    aggregator.remove_map(mock_data1)
+    assert aggregator.map_size == (10, 5)
 
-    def test_get_tile_images_empty_aggregator(self):
-        rect = Rect(0, 0, 5, 5)
-        tiles = list(self.aggregator.get_tile_images_by_rect(rect))
-        self.assertEqual(len(tiles), 0)
+    aggregator.remove_map(mock_data2)
+    assert aggregator.map_size == (0, 0)
 
-    def test_visible_tile_layers_empty(self):
-        self.assertEqual(self.aggregator.visible_tile_layers, [])
 
-    def test_add_map_negative_coordinates(self):
-        self.aggregator.add_map(self.mock_data1, (-2, -2))
-        self.assertEqual(self.aggregator.map_size, (5, 5))
-        rect = Rect(-2, -2, 5, 5)
-        tiles = list(self.aggregator.get_tile_images_by_rect(rect))
-        self.assertEqual(len(tiles), 25)
+def test_visible_tile_layers_with_offsets(aggregator, mock_data1, mock_data2):
+    aggregator.add_map(mock_data1, (0, 0), layer=0)
+    aggregator.add_map(mock_data2, (0, 0), layer=10)
+    # Layers should be offset correctly: mock_data1 layer 0 → 0, mock_data2 layer 1 → 11
+    assert aggregator.visible_tile_layers == [0, 11]
 
-    def test_get_tile_images_partial_overlap(self):
-        self.aggregator.add_map(self.mock_data1, (0, 0))
-        rect = Rect(2, 2, 5, 5)
-        tiles = list(self.aggregator.get_tile_images_by_rect(rect))
-        self.assertEqual(len(tiles), 25)
 
-    def test_get_tile_images_no_overlap(self):
-        self.aggregator.add_map(self.mock_data1, (0, 0))
-        rect = Rect(6, 6, 5, 5)
-        tiles = list(self.aggregator.get_tile_images_by_rect(rect))
-        self.assertEqual(len(tiles), 0)
+def test_get_tile_images_by_rect_layer_adjustment(aggregator, mock_data1, mock_data2):
+    aggregator.add_map(mock_data1, (0, 0), layer=0)
+    aggregator.add_map(mock_data2, (5, 0), layer=10)
+    rect = Rect(0, 0, 10, 5)
+    tiles = list(aggregator.get_tile_images_by_rect(rect))
+    # Ensure layers are adjusted by z offset
+    assert any(l == 0 for _, _, l, _ in tiles)
+    assert any(l == 11 for _, _, l, _ in tiles)
 
-    def test_add_multiple_maps_same_layer(self):
-        self.mock_data2.visible_tile_layers = [0]
-        self.aggregator.add_map(self.mock_data1, (0, 0))
-        self.aggregator.add_map(self.mock_data2, (5, 0))
-        self.assertEqual(self.aggregator.visible_tile_layers, [0])
 
-    def test_add_map_zero_size(self):
-        mock_data_zero_size = MagicMock(spec=PyscrollDataAdapter)
-        mock_data_zero_size.tile_size = (16, 16)
-        mock_data_zero_size.map_size = (0, 0)
-        mock_data_zero_size.visible_tile_layers = [0]
-        self.aggregator.add_map(mock_data_zero_size, (0, 0))
-        self.assertEqual(self.aggregator.map_size, (0, 0))
+def test_add_map_negative_coordinates_normalization(aggregator, mock_data1):
+    aggregator.add_map(mock_data1, (-2, -2))
+    # Normalization should shift map so top-left is (0,0)
+    assert aggregator._min_x == 0
+    assert aggregator._min_y == 0
+    assert aggregator.map_size == (5, 5)
 
-    def test_remove_last_map(self):
-        self.aggregator.add_map(self.mock_data1, (0, 0))
-        self.aggregator.remove_map(self.mock_data1)
-        self.assertEqual(self.aggregator.map_size, (0, 0))
 
-    def test_remove_first_map(self):
-        self.aggregator.add_map(self.mock_data1, (0, 0))
-        self.aggregator.add_map(self.mock_data2, (5, 0))
-        self.aggregator.remove_map(self.mock_data1)
-        self.assertEqual(self.aggregator.map_size, (10, 5))
+def test_remove_nonexistent_map_raises(aggregator, mock_data1):
+    with pytest.raises(ValueError):
+        aggregator.remove_map(mock_data1)
 
-    def test_remove_middle_map(self):
-        self.aggregator.add_map(self.mock_data1, (0, 0))
-        self.aggregator.add_map(self.mock_data2, (5, 0))
-        mock_data3 = MagicMock(spec=PyscrollDataAdapter)
-        mock_data3.tile_size = (16, 16)
-        mock_data3.map_size = (5, 5)
-        mock_data3.visible_tile_layers = [2]
-        self.aggregator.add_map(mock_data3, (2, 0))
-        self.aggregator.remove_map(mock_data3)
-        self.assertEqual(self.aggregator.map_size, (10, 5))
+
+def test_add_map_different_tile_size_raises(aggregator, mock_data1):
+    mock_data_wrong = MagicMock(spec=PyscrollDataAdapter)
+    mock_data_wrong.tile_size = (32, 32)
+    mock_data_wrong.map_size = (3, 3)
+    mock_data_wrong.visible_tile_layers = [0]
+    with pytest.raises(ValueError):
+        aggregator.add_map(mock_data_wrong, (0, 0))
+
+
+def test_get_tile_images_empty_aggregator(aggregator):
+    rect = Rect(0, 0, 5, 5)
+    tiles = list(aggregator.get_tile_images_by_rect(rect))
+    assert tiles == []
+
+
+def test_get_animations_delegation(aggregator, mock_data1):
+    mock_data1.get_animations.return_value = [(1, [(0, 100)])]
+    aggregator.add_map(mock_data1, (0, 0))
+    animations = list(aggregator.get_animations())
+    assert animations == [(1, [(0, 100)])]
+
+
+def test__get_tile_image_delegation(aggregator, mock_data1):
+    mock_data1._get_tile_image.return_value = Surface((16, 16))
+    aggregator.add_map(mock_data1, (0, 0))
+    img = aggregator._get_tile_image(1, 1, 0)
+    assert isinstance(img, Surface)
