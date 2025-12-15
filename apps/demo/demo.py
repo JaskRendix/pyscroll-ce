@@ -36,9 +36,8 @@ from pygame.math import Vector2
 from pygame.surface import Surface
 from pytmx.util_pygame import load_pygame  # type: ignore
 
-import pyscroll
-import pyscroll.data
-import pyscroll.orthographic
+from pyscroll.data import TiledMapData
+from pyscroll.orthographic import BufferedRenderer
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -68,10 +67,8 @@ class ScrollTest:
 
         # Load TMX map
         tmx_data = load_pygame(filename.as_posix())
-        map_data = pyscroll.data.TiledMapData(tmx_data)
-        self.map_layer = pyscroll.orthographic.BufferedRenderer(
-            map_data, screen.get_size()
-        )
+        map_data = TiledMapData(tmx_data)
+        self.map_layer = BufferedRenderer(map_data, screen.get_size())
 
         # Text overlay
         font = Font(pygame.font.get_default_font(), FONT_SIZE)

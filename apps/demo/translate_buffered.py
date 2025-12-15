@@ -13,8 +13,8 @@ from pygame.sprite import Group, Sprite
 from pygame.surface import Surface
 from pytmx.util_pygame import load_pygame  # type: ignore
 
-import pyscroll
 from pyscroll.data import TiledMapData
+from pyscroll.orthographic import BufferedRenderer
 
 # Constants
 RESOURCES_DIR = Path(__file__).parent
@@ -39,9 +39,7 @@ class TranslateTest:
         map_data = TiledMapData(tmx_data)
 
         # Create real renderer
-        self.map_layer = pyscroll.orthographic.BufferedRenderer(
-            map_data, screen.get_size()
-        )
+        self.map_layer = BufferedRenderer(map_data, screen.get_size())
         self.map_layer.zoom = 1.5
         self.map_layer.center((400, 300))  # Center camera
 
