@@ -1,40 +1,61 @@
-import unittest
-
+import pytest
 from pygame.rect import Rect
 
 from pyscroll.data import PyscrollDataAdapter
 
 
-class TestPyscrollDataAdapter(unittest.TestCase):
+@pytest.fixture
+def adapter():
+    return PyscrollDataAdapter()
 
-    def setUp(self):
-        self.adapter = PyscrollDataAdapter()
 
-    def test_process_animation_queue_empty(self):
-        tile_view = Rect(0, 0, 10, 10)
-        self.assertEqual(self.adapter.process_animation_queue(tile_view), [])
+@pytest.mark.parametrize(
+    "method,args",
+    [
+        ("reload_animations", []),
+        ("get_tile_image", [0, 0, 0]),
+        ("_get_tile_image_by_id", [0]),
+        ("get_animations", []),
+        ("_get_tile_gid", [0, 0, 0]),
+    ],
+)
+def test_not_implemented_methods(adapter, method, args):
+    with pytest.raises(NotImplementedError):
+        getattr(adapter, method)(*args)
 
-    def test_prepare_tiles(self):
-        tiles = Rect(0, 0, 10, 10)
-        self.adapter.prepare_tiles(tiles)
 
-    def test_reload_animations_not_implemented(self):
-        with self.assertRaises(NotImplementedError):
-            self.adapter.reload_animations()
+def test_process_animation_queue_empty(adapter):
+    tile_view = Rect(0, 0, 10, 10)
+    assert adapter.process_animation_queue(tile_view) == []
 
-    def test_get_tile_image_not_implemented(self):
-        with self.assertRaises(NotImplementedError):
-            self.adapter.get_tile_image(0, 0, 0)
 
-    def test_get_tile_image_by_id_not_implemented(self):
-        with self.assertRaises(NotImplementedError):
-            self.adapter._get_tile_image_by_id(0)
+def test_prepare_tiles(adapter):
+    tiles = Rect(0, 0, 10, 10)
+    adapter.prepare_tiles(tiles)
 
-    def test_get_animations_not_implemented(self):
-        with self.assertRaises(NotImplementedError):
-            next(self.adapter.get_animations())
 
-    def test_get_tile_images_by_rect_not_implemented(self):
-        rect = Rect(0, 0, 10, 10)
-        with self.assertRaises(StopIteration):
-            next(self.adapter.get_tile_images_by_rect(rect))
+def test_get_tile_images_by_rect_empty(adapter):
+    rect = Rect(0, 0, 10, 10)
+    assert list(adapter.get_tile_images_by_rect(rect)) == []
+
+
+def test_pause_and_resume(adapter):
+    adapter.pause_animations()
+    assert adapter._is_paused
+    paused_time = adapter._paused_time
+    adapter.resume_animations()
+    assert not adapter._is_paused
+    assert adapter._paused_time == 0.0 or adapter._paused_time != paused_time
+
+
+@pytest.mark.parametrize("skip_ahead", [False, True])
+def test_update_time_modes(adapter, skip_ahead):
+    adapter._pause_mode_skip_ahead = skip_ahead
+    before = adapter._last_time
+    adapter._update_time()
+    assert adapter._last_time >= before
+
+
+def test_set_animation_speed_multiplier_invalid(adapter):
+    with pytest.raises(ValueError):
+        adapter.set_animation_speed_multiplier(0)

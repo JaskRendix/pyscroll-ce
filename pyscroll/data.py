@@ -348,7 +348,8 @@ class PyscrollDataAdapter:
         """
         if self._is_paused:
             self._is_paused = False
-            self._update_time()  # Recalculate _last_time based on current time
+            self._paused_time = 0.0
+            self._update_time()
 
     def set_animation_speed_multiplier(self, multiplier: float) -> None:
         """
