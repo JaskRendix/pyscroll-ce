@@ -480,9 +480,10 @@ class MapAggregator(PyscrollDataAdapter):
     - Dynamic map removal with re-normalization
     """
 
-    def __init__(self, tile_size: Vector2DInt) -> None:
+    def __init__(self, tile_size: Vector2DInt, normalize: bool = True) -> None:
         super().__init__()
         self.tile_size = tile_size
+        self._normalize = normalize
         self.map_size: tuple[int, int] = (0, 0)
         self.maps: list[tuple[PyscrollDataAdapter, pygame.Rect, int]] = []
         self._min_x: int = 0
@@ -499,10 +500,12 @@ class MapAggregator(PyscrollDataAdapter):
         rect = pygame.Rect(offset, data.map_size)
         self.maps.append((data, rect, layer))
 
-        # Update min coords and normalize if needed
-        self._min_x = min(self._min_x, rect.left)
-        self._min_y = min(self._min_y, rect.top)
-        self._normalize_positions()
+        # Only normalize if flag is set
+        if self._normalize:
+            self._min_x = min(self._min_x, rect.left)
+            self._min_y = min(self._min_y, rect.top)
+            self._normalize_positions()
+
         self._update_map_size()
 
     def remove_map(self, data: PyscrollDataAdapter) -> None:
@@ -511,7 +514,27 @@ class MapAggregator(PyscrollDataAdapter):
         if len(self.maps) == initial_len:
             raise ValueError("Map is not in the aggregator")
 
-        self._re_normalize_positions()
+        if self._normalize:
+            self._re_normalize_positions()
+        else:
+            self._update_map_size()
+
+    def reload_animations(self) -> None:
+        self._update_time()
+        self._tracked_gids = set()
+        self._animation_map = {}
+        self._animation_queue = []
+
+        for data, rect, z in self.maps:
+            for gid, frame_data in data.get_animations():
+                self._tracked_gids.add(gid)
+                frames = []
+                for frame_gid, frame_duration in frame_data:
+                    image = data._get_tile_image_by_id(frame_gid)
+                    frames.append(AnimationFrame(image, frame_duration / 1000.0))
+                ani = AnimationToken(set(), frames, self._last_time)
+                self._animation_map[gid] = ani
+                heappush(self._animation_queue, ani)
 
     def _normalize_positions(self) -> None:
         """Shift maps so that top-left is always (0,0)."""
