@@ -55,10 +55,16 @@ Install from pip:
 pip install pyscroll-ce
 ```
 
-Or manually install from source:
+Or install from source (inside the project folder):
 
 ```bash
-python setup.py install
+pip install .
+```
+
+For development (editable install):
+
+```bash
+pip install -e .
 ```
 
 ---
