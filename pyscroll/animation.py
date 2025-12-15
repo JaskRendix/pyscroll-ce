@@ -40,7 +40,15 @@ class AnimationToken:
         done: Indicates whether a non-looping animation has completed.
     """
 
-    __slots__ = ("positions", "frames", "next", "index", "loop", "done")
+    __slots__ = (
+        "positions",
+        "frames",
+        "next",
+        "index",
+        "loop",
+        "done",
+        "speed_multiplier",
+    )
 
     def __init__(
         self,
@@ -48,6 +56,7 @@ class AnimationToken:
         frames: Sequence[AnimationFrame],
         initial_time: float = 0.0,
         loop: bool = True,
+        speed_multiplier: float = 1.0,
     ) -> None:
         """
         Initializes an AnimationToken instance.
@@ -67,16 +76,28 @@ class AnimationToken:
         self.positions = positions
         self.frames = tuple(frames)
         self.index = 0
-        self.next = self.frames[0].duration + initial_time
+
+        self.speed_multiplier = speed_multiplier
+
+        initial_duration = self.frames[0].duration / self.speed_multiplier
+        self.next = initial_duration + initial_time
+
         self.loop = loop
         self.done = False
 
-    def advance(self, last_time: TimeLike) -> AnimationFrame:
+        if self.speed_multiplier <= 0:
+            raise ValueError("Speed multiplier must be greater than zero.")
+
+    def advance(self, current_time: TimeLike) -> AnimationFrame:
         """
         Advances to the next frame in the animation sequence.
 
+        The 'current_time' passed in should be the time when the last frame
+        expired (i.e., the value of self.next before advancing).
+
         Args:
-            last_time: Time since the last frame update.
+            current_time: The time value used as the starting point for the
+                next frame's duration.
 
         Returns:
             The next AnimationFrame in the sequence.
@@ -89,11 +110,16 @@ class AnimationToken:
                 self.index = 0
             else:
                 self.done = True
+                return self.frames[self.index]
         else:
             self.index += 1
 
         next_frame = self.frames[self.index]
-        self.next = next_frame.duration + last_time
+
+        effective_duration = next_frame.duration / self.speed_multiplier
+
+        self.next = effective_duration + current_time
+
         return next_frame
 
     def update(self, current_time: TimeLike, elapsed_time: TimeLike) -> AnimationFrame:

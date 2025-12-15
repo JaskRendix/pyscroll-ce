@@ -55,14 +55,19 @@ class PyscrollDataAdapter:
     visible_tile_layers: list[int] = []
 
     def __init__(self) -> None:
-        # last time map animations were updated
-        self._last_time: float = 0.0
         # list of animation tokens
         self._animation_queue: list[AnimationToken] = []
         # mapping of tile substitutions when animated
         self._animated_tile: dict[Vector3DInt, Surface] = {}
         # track the tiles on screen with animations
         self._tracked_tiles = set()
+        # Animation Control
+        self._is_paused: bool = False
+        self._last_time: float = 0.0
+        # Time when pause was initiated
+        self._paused_time: float = 0.0
+        # False = freeze, True = skip-ahead
+        self._pause_mode_skip_ahead: bool = False
 
     def reload_data(self) -> None:
         raise NotImplementedError
@@ -134,13 +139,19 @@ class PyscrollDataAdapter:
         return new_tiles
 
     def _update_time(self) -> None:
-        """
-        Update the internal clock.
-
-        This may change in future versions.
-
-        """
-        self._last_time = time.time() * 1000
+        if not self._is_paused:
+            current_time = time.time()
+            if self._pause_mode_skip_ahead:
+                # Skip-ahead mode: catch up to real time
+                if self._paused_time > 0.0:
+                    time_offset = current_time - self._paused_time
+                    self._last_time += time_offset
+                    self._paused_time = 0.0
+                else:
+                    self._last_time = current_time
+            else:
+                # Freeze mode: resume exactly where you left off
+                self._last_time = current_time
 
     def prepare_tiles(self, tiles: RectLike) -> None:
         """
@@ -175,7 +186,8 @@ class PyscrollDataAdapter:
             frames: list[AnimationFrame] = []
             for frame_gid, frame_duration in frame_data:
                 image = self._get_tile_image_by_id(frame_gid)
-                frames.append(AnimationFrame(image, frame_duration))
+                # Convert ms → seconds
+                frames.append(AnimationFrame(image, frame_duration / 1000.0))
 
             # the following line is slow when loading maps, but avoids overhead when rendering
             # positions = set(self.tmx.get_tile_locations_by_gid(gid))
@@ -199,20 +211,32 @@ class PyscrollDataAdapter:
             l: layer
 
         """
-        # disabled for now, re-enable when support for generic maps is restored
-        # # since the tile has been queried, assume it wants to be checked
-        # # for animations sometime in the future
-        # if self._animation_queue:
-        #     self._tracked_tiles.add((x, y, l))
+        position: Vector3DInt = (x, y, l)
 
         try:
-            # animated, so return the correct frame
-            return self._animated_tile[(x, y, l)]
+            # 1. Animated and currently tracked: return the correct frame
+            return self._animated_tile[position]
 
         except KeyError:
+            # 2. Not currently tracked as animated. Get the base image.
+            image = self._get_tile_image(x, y, l)
 
-            # not animated, so return surface from data, if any
-            return self._get_tile_image(x, y, l)
+            # 3. Check if this tile should be animated
+            if self._animation_map:
+                gid = self._get_tile_gid(x, y, l)
+                if gid in self._animation_map:
+                    # This tile is animated, but not yet tracked.
+                    # Add its position to the relevant AnimationToken.
+                    token = self._animation_map[gid]
+                    token.positions.add(position)
+
+                    # Set initial animated image (first frame) for immediate use
+                    self._animated_tile[position] = token.frames[0].image
+                    return self._animated_tile[position]
+
+                return image  # return the base image (static tile)
+
+            return image  # return the base image (no animations loaded)
 
     def _get_tile_image(self, x: int, y: int, l: int) -> Surface:
         """
@@ -243,7 +267,7 @@ class PyscrollDataAdapter:
         """
         raise NotImplementedError
 
-    def get_animations(self) -> None:
+    def get_animations(self) -> Iterable[tuple[int, list[tuple[int, int]]]]:
         """
         Get tile animation data.
 
@@ -262,6 +286,21 @@ class PyscrollDataAdapter:
           This will be something accessible using _get_tile_image_by_id
 
           Duration should be in milliseconds
+
+        """
+        raise NotImplementedError
+
+    def _get_tile_gid(self, x: int, y: int, l: int) -> Optional[int]:
+        """
+        Return the Global ID (GID) of the tile at the coordinates, or None if empty.
+
+        This is required for dynamic animation tracking.
+        Concrete implementations (e.g., TiledMapData) must override this.
+
+        Args:
+            x: x coordinate
+            y: y coordinate
+            l: layer
 
         """
         raise NotImplementedError
@@ -294,6 +333,35 @@ class PyscrollDataAdapter:
                 tile = self.get_tile_image(x, y, layer)
                 if tile:
                     yield x, y, layer, tile
+
+    def pause_animations(self) -> None:
+        """
+        Halt all map tile animations.
+        """
+        if not self._is_paused:
+            self._is_paused = True
+            self._paused_time = time.time()
+
+    def resume_animations(self) -> None:
+        """
+        Resume all map tile animations from where they left off.
+        """
+        if self._is_paused:
+            self._is_paused = False
+            self._update_time()  # Recalculate _last_time based on current time
+
+    def set_animation_speed_multiplier(self, multiplier: float) -> None:
+        """
+        Adjust the speed of all active animations.
+
+        Args:
+            multiplier: A factor to scale the animation speed (e.g., 0.5 for half speed).
+        """
+        if multiplier <= 0:
+            raise ValueError("Multiplier must be greater than zero.")
+
+        for token in self._animation_queue:
+            token.speed_multiplier = multiplier
 
 
 class TiledMapData(PyscrollDataAdapter):
@@ -351,6 +419,12 @@ class TiledMapData(PyscrollDataAdapter):
             for layer in self.tmx.visible_layers
             if isinstance(layer, pytmx.TiledObjectGroup)
         )
+
+    def _get_tile_gid(self, x: int, y: int, l: int) -> Optional[int]:
+        try:
+            return self.tmx.layers[l].data[y][x]
+        except (IndexError, AttributeError):
+            return None
 
     def _get_tile_image(self, x: int, y: int, l: int):
         try:
