@@ -1,4 +1,5 @@
 import unittest
+from typing import Any
 from unittest import mock
 
 from pygame.rect import Rect
@@ -13,11 +14,28 @@ class DummyDataAdapter(PyscrollDataAdapter):
     map_size = (32, 32)
     visible_tile_layers = [1]
 
-    def get_animations(self):
-        return list()
+    def __init__(self) -> None:
+        super().__init__()
+        # Initialize animation-related attributes so tests don't crash
+        self._animation_map: dict[int, Any] = {}
+        self._tracked_gids: set[int] = set()
+        self._animated_tile: dict[tuple[int, int, int], Any] = {}
+        self._animation_queue: list[Any] = []
 
-    def get_tile_image(self, *position):
-        return position[0] * position[1]
+    def get_animations(self):
+        return []
+
+    def reload_data(self) -> None:
+        pass
+
+    def _get_tile_image(self, x: int, y: int, l: int):
+        return x * y
+
+    def _get_tile_image_by_id(self, id: int):
+        return None
+
+    def _get_tile_gid(self, x: int, y: int, l: int):
+        return None
 
 
 class DummyBufferer:

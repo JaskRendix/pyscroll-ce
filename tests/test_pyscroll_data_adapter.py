@@ -1,19 +1,58 @@
+from collections.abc import Iterable
+from typing import Optional
+
 import pytest
 from pygame.rect import Rect
+from pygame.surface import Surface
 
 from pyscroll.data import PyscrollDataAdapter
 
 
+class DummyAdapter(PyscrollDataAdapter):
+    def __init__(self):
+        super().__init__()
+        self._animated_tile = {}
+        self._animation_map = {}
+        self._animation_queue = []
+        self._tracked_gids = set()
+
+    @property
+    def tile_size(self) -> tuple[int, int]:
+        return (32, 32)
+
+    @property
+    def map_size(self) -> tuple[int, int]:
+        return (32, 32)
+
+    @property
+    def visible_tile_layers(self) -> list[int]:
+        return [0]
+
+    def reload_data(self) -> None:
+        raise NotImplementedError
+
+    def _get_tile_image(self, x: int, y: int, l: int) -> Optional[Surface]:
+        return None
+
+    def _get_tile_image_by_id(self, id: int) -> Optional[Surface]:
+        raise NotImplementedError
+
+    def get_animations(self) -> Iterable[tuple[int, list[tuple[int, int]]]]:
+        raise NotImplementedError
+
+    def _get_tile_gid(self, x: int, y: int, l: int) -> Optional[int]:
+        raise NotImplementedError
+
+
 @pytest.fixture
 def adapter():
-    return PyscrollDataAdapter()
+    return DummyAdapter()
 
 
 @pytest.mark.parametrize(
     "method,args",
     [
         ("reload_animations", []),
-        ("get_tile_image", [0, 0, 0]),
         ("_get_tile_image_by_id", [0]),
         ("get_animations", []),
         ("_get_tile_gid", [0, 0, 0]),

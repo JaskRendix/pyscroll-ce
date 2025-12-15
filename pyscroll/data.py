@@ -8,7 +8,8 @@ as a template.  Just fill in values that work for your game.
 from __future__ import annotations
 
 import time
-from collections.abc import Iterable
+from abc import ABC, abstractmethod
+from collections.abc import Iterable, Sequence
 from heapq import heappop, heappush
 from itertools import product
 from typing import Any, Optional
@@ -33,26 +34,14 @@ __all__ = (
 )
 
 
-class PyscrollDataAdapter:
+class PyscrollDataAdapter(ABC):
     """
     Use this as a template for data adapters
 
     Contains logic for handling animated tiles.  Animated tiles
     are a WIP feature, and while in theory will work with any data
     source, it is only tested using Tiled maps, loaded with pytmx.
-
     """
-
-    # the following can be class/instance attributes
-    # or properties.  they are listed here as class
-    # instances, but use as properties is fine, too.
-
-    # (int, int): size of each tile in pixels
-    tile_size: Vector2DInt = (0, 0)
-    # (int, int): size of map in tiles
-    map_size: Vector2DInt = (0, 0)
-    # list of visible layer integers
-    visible_tile_layers: list[int] = []
 
     def __init__(self) -> None:
         # list of animation tokens
@@ -69,8 +58,47 @@ class PyscrollDataAdapter:
         # False = freeze, True = skip-ahead
         self._pause_mode_skip_ahead: bool = False
 
+    @property
+    @abstractmethod
+    def tile_size(self) -> Vector2DInt:
+        """Return (tilewidth, tileheight)."""
+        ...
+
+    @property
+    @abstractmethod
+    def map_size(self) -> Vector2DInt:
+        """Return (mapwidth, mapheight)."""
+        ...
+
+    @property
+    @abstractmethod
+    def visible_tile_layers(self) -> list[int]:
+        """Return list of visible tile layer indices."""
+
+    @abstractmethod
     def reload_data(self) -> None:
-        raise NotImplementedError
+        """Reload underlying map data."""
+        ...
+
+    @abstractmethod
+    def _get_tile_image(self, x: int, y: int, l: int) -> Optional[Surface]:
+        """Return tile image at coordinates, or None if empty."""
+        ...
+
+    @abstractmethod
+    def _get_tile_image_by_id(self, id: int) -> Surface:
+        """Return image by tile ID."""
+        ...
+
+    @abstractmethod
+    def get_animations(self) -> Iterable[tuple[int, list[tuple[int, int]]]]:
+        """Yield (gid, frames) for animated tiles."""
+        ...
+
+    @abstractmethod
+    def _get_tile_gid(self, x: int, y: int, l: int) -> Optional[int]:
+        """Return the tile GID at coordinates, or None."""
+        ...
 
     def process_animation_queue(
         self,
@@ -228,69 +256,6 @@ class PyscrollDataAdapter:
 
             return image
 
-    def _get_tile_image(self, x: int, y: int, l: int) -> Surface:
-        """
-        Return tile at the coordinates, or None is empty.
-
-        This is used to query the data source directly, without
-        checking for animations or any other tile transformations.
-
-        You must override this to support other data sources
-
-        Args:
-            x: x coordinate
-            y: y coordinate
-            l: layer
-        """
-        raise NotImplementedError
-
-    def _get_tile_image_by_id(self, id: int) -> Any:
-        """
-        Return Image by a custom ID.
-
-        Used for animations.  Not required for static maps.
-
-        Args:
-            id:
-        """
-        raise NotImplementedError
-
-    def get_animations(self) -> Iterable[tuple[int, list[tuple[int, int]]]]:
-        """
-        Get tile animation data.
-
-        This method is subject to change in the future.
-
-        Must yield tuples that in the following format:
-          ( ID, Frames )
-
-          Where Frames is:
-          [ (ID, Duration), ... ]
-
-          [tuple[int, tuple[int, float]]]
-          [tuple[gid, tuple[frame_gid, frame_duration]]]
-
-          And ID is a reference to a tile image.
-          This will be something accessible using _get_tile_image_by_id
-
-          Duration should be in milliseconds
-        """
-        raise NotImplementedError
-
-    def _get_tile_gid(self, x: int, y: int, l: int) -> Optional[int]:
-        """
-        Return the Global ID (GID) of the tile at the coordinates, or None if empty.
-
-        This is required for dynamic animation tracking.
-        Concrete implementations (e.g., TiledMapData) must override this.
-
-        Args:
-            x: x coordinate
-            y: y coordinate
-            l: layer
-        """
-        raise NotImplementedError
-
     def get_tile_images_by_rect(
         self, view: RectLike
     ) -> Iterable[tuple[int, int, int, Surface]]:
@@ -355,42 +320,27 @@ class PyscrollDataAdapter:
 class TiledMapData(PyscrollDataAdapter):
     """
     For data loaded from pytmx.
-
     """
 
     def __init__(self, tmx: pytmx.TiledMap) -> None:
-        super(TiledMapData, self).__init__()
+        super().__init__()
         self.tmx = tmx
         self.reload_animations()
 
     def reload_data(self) -> None:
         self.tmx = pytmx.load_pygame(self.tmx.filename)
 
-    def get_animations(self):
+    def get_animations(self) -> Iterable[tuple[int, list[tuple[int, int]]]]:
         for gid, d in self.tmx.tile_properties.items():
-            try:
-                frames = d["frames"]
-            except KeyError:
-                continue
-
+            frames = d.get("frames")
             if frames:
                 yield gid, frames
 
     def convert_surfaces(self, parent: Surface, alpha: bool = False) -> None:
-        """
-        Convert all TMX images to match the display format.
-
-        Args:
-            parent: A reference surface (usually the display surface).
-            alpha: If True, use convert_alpha; otherwise use convert.
-        """
-        images = []
+        images: list[Optional[Surface]] = []
         for i in self.tmx.images:
             try:
-                if alpha:
-                    images.append(i.convert_alpha())
-                else:
-                    images.append(i.convert(parent))
+                images.append(i.convert_alpha() if alpha else i.convert(parent))
             except AttributeError:
                 images.append(None)
         self.tmx.images = images
@@ -404,7 +354,7 @@ class TiledMapData(PyscrollDataAdapter):
         return self.tmx.width, self.tmx.height
 
     @property
-    def visible_tile_layers(self):
+    def visible_tile_layers(self) -> list[int]:
         return self.tmx.visible_tile_layers
 
     @property
@@ -421,7 +371,7 @@ class TiledMapData(PyscrollDataAdapter):
         except (IndexError, AttributeError):
             return None
 
-    def _get_tile_image(self, x: int, y: int, l: int):
+    def _get_tile_image(self, x: int, y: int, l: int) -> Optional[Surface]:
         try:
             return self.tmx.get_tile_image(x, y, l)
         except ValueError:
@@ -433,7 +383,7 @@ class TiledMapData(PyscrollDataAdapter):
     def get_tile_images_by_rect(
         self, view: RectLike
     ) -> Iterable[tuple[int, int, int, Surface]]:
-        def rev(seq: list[int], start: int, stop: int) -> enumerate[int]:
+        def rev(seq: Sequence[int], start: int, stop: int) -> enumerate[int]:
             if start < 0:
                 start = 0
             return enumerate(seq[start : stop + 1], start)
@@ -477,14 +427,29 @@ class MapAggregator(PyscrollDataAdapter):
 
     def __init__(self, tile_size: Vector2DInt, normalize: bool = True) -> None:
         super().__init__()
-        self.tile_size = tile_size
+        self._tile_size = tile_size
         self._normalize = normalize
-        self.map_size: tuple[int, int] = (0, 0)
+        self._map_size: tuple[int, int] = (0, 0)
         self.maps: list[tuple[PyscrollDataAdapter, Rect, int]] = []
         self._min_x: int = 0
         self._min_y: int = 0
         self._animation_map: dict[int, AnimationToken] = {}
         self._tracked_gids: set[int] = set()
+
+    @property
+    def tile_size(self) -> Vector2DInt:
+        return self._tile_size
+
+    @property
+    def map_size(self) -> Vector2DInt:
+        return self._map_size
+
+    @property
+    def visible_tile_layers(self) -> list[int]:
+        layers = set()
+        for data, _, z in self.maps:
+            layers.update([l + z for l in data.visible_tile_layers])
+        return sorted(layers)
 
     def add_map(
         self, data: PyscrollDataAdapter, offset: Vector2DInt, layer: int = 0
@@ -515,15 +480,18 @@ class MapAggregator(PyscrollDataAdapter):
             self._update_map_size()
 
     def reload_animations(self) -> None:
+        """
+        Aggregate animations from all child maps into the aggregator.
+        """
         self._update_time()
         self._tracked_gids = set()
         self._animation_map = {}
         self._animation_queue = []
 
-        for data, rect, z in self.maps:
+        for data, _, _ in self.maps:
             for gid, frame_data in data.get_animations():
                 self._tracked_gids.add(gid)
-                frames = []
+                frames: list[AnimationFrame] = []
                 for frame_gid, frame_duration in frame_data:
                     image = data._get_tile_image_by_id(frame_gid)
                     frames.append(AnimationFrame(image, frame_duration / 1000.0))
@@ -544,7 +512,7 @@ class MapAggregator(PyscrollDataAdapter):
         """Recalculate normalization after removal."""
         if not self.maps:
             self._min_x, self._min_y = 0, 0
-            self.map_size = (0, 0)
+            self._map_size = (0, 0)
             return
 
         self._min_x = min(rect.left for _, rect, _ in self.maps)
@@ -558,7 +526,7 @@ class MapAggregator(PyscrollDataAdapter):
         for _, rect, _ in self.maps:
             mx = max(mx, rect.right)
             my = max(my, rect.bottom)
-        self.map_size = (mx, my)
+        self._map_size = (mx, my)
 
     @property
     def visible_tile_layers(self) -> list[int]:
@@ -592,12 +560,26 @@ class MapAggregator(PyscrollDataAdapter):
                 return data._get_tile_image(local_x, local_y, local_l)
         return None
 
+    def _get_tile_gid(self, x: int, y: int, l: int) -> Optional[int]:
+        for data, rect, z in self.maps:
+            if rect.collidepoint(x, y) and (l - z) in data.visible_tile_layers:
+                local_x = x - rect.left
+                local_y = y - rect.top
+                local_l = l - z
+                try:
+                    return data._get_tile_gid(local_x, local_y, local_l)
+                except NotImplementedError:
+                    continue
+        return None
+
     def _get_tile_image_by_id(self, id: int) -> Optional[Surface]:
         """Delegate image lookup by ID to child maps (first match)."""
         for data, _, _ in self.maps:
             try:
-                return data._get_tile_image_by_id(id)
-            except Exception:
+                image = data._get_tile_image_by_id(id)
+                if image:
+                    return image
+            except NotImplementedError:
                 continue
         return None
 
@@ -610,8 +592,7 @@ class MapAggregator(PyscrollDataAdapter):
     def reload_data(self) -> None:
         """Reload all child maps."""
         for data, _, _ in self.maps:
-            if hasattr(data, "reload_data"):
-                data.reload_data()
+            data.reload_data()
 
     def __repr__(self) -> str:
         return f"MapAggregator(tile_size={self.tile_size}, maps={self.maps})"
