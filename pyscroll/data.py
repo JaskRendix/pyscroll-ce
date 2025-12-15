@@ -100,6 +100,20 @@ class PyscrollDataAdapter(ABC):
         """Return the tile GID at coordinates, or None."""
         ...
 
+    def pixel_to_tile(self, px: float, py: float) -> Vector2DInt:
+        """
+        Translates pixel coordinates (float) to map tile coordinates (int).
+        """
+        tile_w, tile_h = self.tile_size
+        return (int(px // tile_w), int(py // tile_h))
+
+    def is_on_map(self, x: int, y: int) -> bool:
+        """
+        Checks if the given tile coordinates are within the map boundaries.
+        """
+        map_w, map_h = self.map_size
+        return 0 <= x < map_w and 0 <= y < map_h
+
     def process_animation_queue(
         self,
         tile_view: Rect,

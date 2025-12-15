@@ -98,3 +98,17 @@ def test_update_time_modes(adapter, skip_ahead):
 def test_set_animation_speed_multiplier_invalid(adapter):
     with pytest.raises(ValueError):
         adapter.set_animation_speed_multiplier(0)
+
+
+def test_pixel_to_tile(adapter):
+    assert adapter.pixel_to_tile(64, 96) == (2, 3)
+    assert adapter.pixel_to_tile(0, 0) == (0, 0)
+    assert adapter.pixel_to_tile(63.9, 31.9) == (1, 0)
+
+
+def test_is_on_map(adapter):
+    assert adapter.is_on_map(0, 0)
+    assert adapter.is_on_map(31, 31)
+    assert not adapter.is_on_map(-1, 0)
+    assert not adapter.is_on_map(0, 32)
+    assert not adapter.is_on_map(32, 0)
