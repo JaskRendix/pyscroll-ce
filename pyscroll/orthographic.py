@@ -461,18 +461,20 @@ class BufferedRenderer:
         left, top = self._tile_view.topleft
         tile_layers = tuple(sorted(self.data.visible_tile_layers))
         top_layer = tile_layers[-1]
+
         blit_list = []
-        sprite_damage = set()
+        sprite_damage: set[tuple[int, tuple[int, ...]]] = set()
         order = 0
 
-        # get tile that sprites overlap
+        # Collect sprite blits + damage rects
         for renderable in surfaces:
 
-            # sprite must not be over the top layer for damage to matter
+            # Sprites at or below the top tile layer can damage tiles
             if renderable.layer <= top_layer:
                 damage_rect = Rect(renderable.rect)
                 damage_rect.move_ip(ox, oy)
 
+                # Tall sprites only damage the bottom portion
                 if self.tall_sprites:
                     damage_rect = Rect(
                         damage_rect.x,
@@ -481,62 +483,63 @@ class BufferedRenderer:
                         self.tall_sprites,
                     )
 
+                # Collect tile cells touched by the sprite
                 for hit_rect in self._layer_quadtree.hit(damage_rect):
                     sprite_damage.add((renderable.layer, hit_rect))
 
-            # add surface to draw list
-            blend = renderable.blendmode
+            # Add sprite to blit list
             x, y, w, h = renderable.rect
-            blit_op = (
-                renderable.layer,
-                1,  # priority
-                x,
-                y,
-                order,
-                renderable.surface,
-                blend,
+            blit_list.append(
+                (
+                    renderable.layer,
+                    1,  # priority: sprites above tiles
+                    x,
+                    y,
+                    order,
+                    renderable.surface,
+                    renderable.blendmode,
+                )
             )
-            blit_list.append(blit_op)
             order += 1
 
+        # Tile overlap correction
         # TODO: heightmap to avoid checking tiles in each cell
-        # from bottom to top, clear screen and add tiles into the draw
-        # list.  while getting tiles for the damage, compare the damaged
-        # layer to the highest tile.  if the highest tile is greater or
-        # equal to the damaged layer, then add the entire column of
-        # tiles to the blit_list.  if not, then discard the column and
-        # do not update the screen when the damage was done.
-        column = list()
-        is_over = False
-        for dl, damage_rect in sprite_damage:
-            x, y, w, h = damage_rect
+        column = []
+        for dl, d_rect in sprite_damage:
+            x, y, w, h = d_rect
             tx = x // w + left
             ty = y // h + top
-            # TODO: heightmap
+
+            is_over = False
             for l in tile_layers:
                 tile = self.data.get_tile_image(tx, ty, l)
                 if tile:
                     sx = x - ox
                     sy = y - oy
+
+                    # If the damaged layer is below this tile layer,
+                    # the tile must be redrawn above the sprite.
                     if dl <= l:
                         is_over = True
-                    blit_op = l, 0, sx, sy, order, tile, None
-                    column.append(blit_op)
+
+                    column.append((l, 0, sx, sy, order, tile, None))
                     order += 1
+
+            # Only draw the column if the sprite is actually under tiles
             if is_over:
                 blit_list.extend(column)
             column.clear()
-            is_over = False
 
-        # finally sort and do the thing
+        # --- Pass 3: final blit ---
         blit_list.sort()
-        draw_list2 = list()
+
+        draw_list2 = []
         for l, priority, x, y, order, s, blend in blit_list:
             if blend is not None:
-                blit_op = s, (x, y), None, blend
+                draw_list2.append((s, (x, y), None, blend))
             else:
-                blit_op = s, (x, y)
-            draw_list2.append(blit_op)
+                draw_list2.append((s, (x, y)))
+
         surface.blits(draw_list2, doreturn=False)
 
     def _queue_edge_tiles(self, dx: int, dy: int) -> None:
