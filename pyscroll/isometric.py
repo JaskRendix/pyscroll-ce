@@ -1,16 +1,13 @@
 import logging
 import math
-
 from typing import TYPE_CHECKING
 
 from pygame.rect import Rect
 from pygame.surface import Surface
 
 from pyscroll.common import Vector2D
+from pyscroll.group import Renderable
 from pyscroll.orthographic import BufferedRenderer
-
-if TYPE_CHECKING:
-    from pyscroll.group import Renderable
 
 log = logging.getLogger(__file__)
 
@@ -70,17 +67,17 @@ class IsometricBufferedRenderer(BufferedRenderer):
 
             # Convert sprite position into isometric space
             rx, ry, rw, rh = renderable.rect
-            iso_x, iso_y = vector2_to_iso((int(rx) - ox, int(ry) - oy))
-
-            # Depth ordering: isometric depth is based on iso_y
-            depth = iso_y
+            sx = int(rx) - ox
+            sy = int(ry) - oy
+            depth = sy
+            position = (sx, sy)
 
             blit_list.append(
                 (
                     depth,
                     order,
                     renderable.surface,
-                    (iso_x, iso_y),
+                    position,
                     renderable.blendmode,
                 )
             )
@@ -215,9 +212,6 @@ class IsometricBufferedRenderer(BufferedRenderer):
         twh = tw // 2
         thh = th // 2
 
-        bw, bh = surface.get_size()
-        bw_half = bw / 2
-
         # Prepare tile queue
         queue: list[tuple[int, int, int, Surface, int]] = []
         append = queue.append
@@ -245,7 +239,7 @@ class IsometricBufferedRenderer(BufferedRenderer):
             ly = y - v.top
 
             # cart -> iso projection
-            iso_x = ((lx - ly) * twh) + bw_half
+            iso_x = (lx - ly) * twh
             iso_y = (lx + ly) * thh
 
             surface_blit(tile, (iso_x, iso_y))
