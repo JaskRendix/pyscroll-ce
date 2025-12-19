@@ -79,37 +79,48 @@ The Quest demo shows how to draw maps with pytmx, render layers quickly, and han
 ## Example Use with pytmx
 
 ```bash
-from pytmx.util_pygame import load_pygame
 import pygame
+from pytmx.util_pygame import load_pygame
 import pyscroll
 
 class Sprite(pygame.sprite.Sprite):
     def __init__(self, surface) -> None:
+        super().__init__()
         self.image = surface
         self.rect = surface.get_rect()
 
-# Load TMX data
-tmx_data = load_pygame("desert.tmx")
+class Game:
+    def __init__(self, screen: pygame.Surface) -> None:
+        self.screen = screen
 
-# Create the scrolling layer
-map_layer = pyscroll.BufferedRenderer(
-    data=pyscroll.TiledMapData(tmx_data),
-    size=(400, 400),
-)
+        # Load TMX
+        tmx_data = load_pygame("desert.tmx")
 
-# Create the pygame SpriteGroup with a scrolling map
-group = pyscroll.PyscrollGroup(map_layer=map_layer)
+        # Create map renderer
+        map_data = pyscroll.TiledMapData(tmx_data)
+        map_layer = pyscroll.BufferedRenderer(map_data, screen.get_size())
 
-# Add a sprite
-surface = pygame.image.load("my_surface.png").convert_alpha()
-sprite = Sprite(surface)
-group.add(sprite)
+        # Create group with map
+        self.group = pyscroll.PyscrollGroup(map_layer=map_layer)
 
-# Center the camera on the sprite
-group.center(sprite.rect.center)
+        # Camera is now external
+        self.camera = Camera()
 
-# Draw map and sprites
-group.draw(screen)
+        # Add a sprite
+        surface = pygame.image.load("my_surface.png").convert_alpha()
+        self.hero = Sprite(surface)
+        self.group.add(self.hero)
+
+    def update(self, dt: float) -> None:
+        # Update all sprites
+        self.group.update(dt)
+
+        # Update camera and center the map on the hero
+        new_center = self.camera.update(self.group.view, self.hero.rect, dt)
+        self.group.center(new_center)
+
+    def draw(self) -> None:
+        self.group.draw(self.screen)
 ```
 
 ---
