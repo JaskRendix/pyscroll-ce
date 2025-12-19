@@ -455,6 +455,22 @@ class MapAggregator(PyscrollDataAdapter):
             layers.update([l + z for l in data.visible_tile_layers])
         return sorted(layers)
 
+    def world_to_local(
+        self, x: int, y: int, l: int
+    ) -> tuple[PyscrollDataAdapter, int, int, int] | None:
+        """
+        Convert world coordinates (x, y, l) into the correct
+        (data, local_x, local_y, local_layer) for the map that owns them.
+        """
+        for data, rect, z in self.maps:
+            if rect.collidepoint(x, y):
+                local_x = x - rect.left
+                local_y = y - rect.top
+                local_l = l - z
+                if local_l in data.visible_tile_layers:
+                    return data, local_x, local_y, local_l
+        return None
+
     def add_map(
         self, data: PyscrollDataAdapter, offset: tuple[int, int], layer: int = 0
     ) -> None:
@@ -548,26 +564,25 @@ class MapAggregator(PyscrollDataAdapter):
                     yield x + ox, y + oy, l + z, image
 
     def _get_tile_image(self, x: int, y: int, l: int) -> Optional[Surface]:
-        """Delegate tile image lookup to the correct sub-map."""
-        for data, rect, z in self.maps:
-            if rect.collidepoint(x, y) and (l - z) in data.visible_tile_layers:
-                local_x = x - rect.left
-                local_y = y - rect.top
-                local_l = l - z
-                return data._get_tile_image(local_x, local_y, local_l)
-        return None
+        """Delegate tile image lookup using world_to_local()."""
+        info = self.world_to_local(x, y, l)
+        if not info:
+            return None
+
+        data, lx, ly, ll = info
+        return data._get_tile_image(lx, ly, ll)
 
     def _get_tile_gid(self, x: int, y: int, l: int) -> Optional[int]:
-        for data, rect, z in self.maps:
-            if rect.collidepoint(x, y) and (l - z) in data.visible_tile_layers:
-                local_x = x - rect.left
-                local_y = y - rect.top
-                local_l = l - z
-                try:
-                    return data._get_tile_gid(local_x, local_y, local_l)
-                except NotImplementedError:
-                    continue
-        return None
+        """Delegate GID lookup using world_to_local()."""
+        info = self.world_to_local(x, y, l)
+        if not info:
+            return None
+
+        data, lx, ly, ll = info
+        try:
+            return data._get_tile_gid(lx, ly, ll)
+        except NotImplementedError:
+            return None
 
     def _get_tile_image_by_id(self, id: int) -> Optional[Surface]:
         """Delegate image lookup by ID to child maps (first match)."""

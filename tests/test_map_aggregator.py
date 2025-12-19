@@ -107,3 +107,30 @@ def test__get_tile_image_delegation(aggregator, mock_data1):
     aggregator.add_map(mock_data1, (0, 0))
     img = aggregator._get_tile_image(1, 1, 0)
     assert isinstance(img, Surface)
+
+
+def test_world_to_local_basic(aggregator, mock_data1):
+    aggregator.add_map(mock_data1, (10, 20), layer=5)
+
+    result = aggregator.world_to_local(12, 23, 5)
+
+    assert result is not None
+    data, lx, ly, ll = result
+
+    assert data is mock_data1
+    assert lx == 2
+    assert ly == 3
+    assert ll == 0
+
+
+def test_world_to_local_outside_map(aggregator, mock_data1):
+    aggregator.add_map(mock_data1, (0, 0))
+    result = aggregator.world_to_local(100, 100, 0)
+
+    assert result is None
+
+
+def test_world_to_local_wrong_layer(aggregator, mock_data1):
+    aggregator.add_map(mock_data1, (0, 0), layer=0)
+    result = aggregator.world_to_local(1, 1, 5)
+    assert result is None
