@@ -3,8 +3,7 @@ from __future__ import annotations
 import logging
 import math
 import time
-from collections.abc import Callable
-from itertools import chain, product
+from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Optional
 
 import pygame
@@ -24,6 +23,8 @@ log = logging.getLogger(__file__)
 
 Blit2 = tuple[Surface, tuple[int | float, int | float]]
 Blit3 = tuple[Surface, tuple[int | float, int | float], int]
+ColorRGB = tuple[int, int, int]
+ColorRGBA = tuple[int, int, int, int]
 
 
 class BufferedRenderer:
@@ -36,8 +37,8 @@ class BufferedRenderer:
     created with Tiled.
     """
 
-    _rgba_clear_color = 0, 0, 0, 0
-    _rgb_clear_color = 0, 0, 0
+    _rgba_clear_color: ColorRGBA = (0, 0, 0, 0)
+    _rgb_clear_color: ColorRGB = (0, 0, 0)
 
     def __init__(
         self,
@@ -84,6 +85,7 @@ class BufferedRenderer:
         self.map_rect = Rect(0, 0, 0, 0)
 
         # internal private defaults
+        self._clear_color: Optional[ColorRGB | ColorRGBA]
         if colorkey and alpha:
             log.error("cannot select both colorkey and alpha")
             raise ValueError
@@ -114,7 +116,7 @@ class BufferedRenderer:
         self._half_width: int = 0
         self._half_height: int = 0
         # tiles queued to be draw onto buffer
-        self._tile_queue: Optional[list[tuple[int, int, int, Surface]]] = None
+        self._tile_queue: Iterable[tuple[int, int, int, Surface]] = ()
         # heap queue of animation token;  schedules tile changes
         self._animation_queue: Optional[list[AnimationToken]] = None
         # used to draw tiles that overlap optional surfaces
@@ -557,15 +559,17 @@ class BufferedRenderer:
         """
         v = self._tile_view
         tw, th = self.data.tile_size
-        self._tile_queue = iter([])
 
-        def append(rect) -> None:
-            self._tile_queue = chain(
-                self._tile_queue, self.data.get_tile_images_by_rect(rect)
-            )
+        queue: list[tuple[int, int, int, Surface]] = []
+
+        def append(rect: RectLike) -> None:
+            queue.extend(self.data.get_tile_images_by_rect(rect))
+            buffer = self._buffer
+            if buffer is None:
+                return
             # TODO: optimize so fill is only used when map is smaller than buffer
             self._clear_surface(
-                self._buffer,
+                buffer,
                 (
                     (rect[0] - v.left) * tw,
                     (rect[1] - v.top) * th,
@@ -574,17 +578,17 @@ class BufferedRenderer:
                 ),
             )
 
-        if dx > 0:  # right side
+        if dx > 0:
             append((v.right - 1, v.top, dx, v.height))
-
-        elif dx < 0:  # left side
+        elif dx < 0:
             append((v.left, v.top, -dx, v.height))
 
-        if dy > 0:  # bottom side
+        if dy > 0:
             append((v.left, v.bottom - 1, v.width, dy))
-
-        elif dy < 0:  # top side
+        elif dy < 0:
             append((v.left, v.top, v.width, -dy))
+
+        self._tile_queue = iter(queue)
 
     @staticmethod
     def _calculate_zoom_buffer_size(
@@ -593,8 +597,8 @@ class BufferedRenderer:
         if value <= 0:
             log.error("zoom level cannot be zero or less")
             raise ValueError
-        value = 1.0 / value
-        return int(size[0] * value), int(size[1] * value)
+        scale = 1.0 / value
+        return int(size[0] * scale), int(size[1] * scale)
 
     def _create_buffers(
         self, view_size: tuple[int, int], buffer_size: tuple[int, int]
@@ -606,25 +610,35 @@ class BufferedRenderer:
             view_size: pixel size of the view
             buffer_size: pixel size of the buffer
         """
-        requires_zoom_buffer = not view_size == buffer_size
+        requires_zoom = view_size != buffer_size
         self._zoom_buffer = None
 
+        # Determine flags and whether to fill
         if self._clear_color is None:
-            if requires_zoom_buffer:
-                self._zoom_buffer = Surface(view_size)
-            self._buffer = Surface(buffer_size)
+            flags = 0
+            fill_color = None
         elif self._clear_color == self._rgba_clear_color:
-            if requires_zoom_buffer:
-                self._zoom_buffer = Surface(view_size, flags=pygame.SRCALPHA)
-            self._buffer = Surface(buffer_size, flags=pygame.SRCALPHA)
+            flags = pygame.SRCALPHA
+            fill_color = None
+        else:
+            flags = pygame.RLEACCEL
+            fill_color = self._clear_color
+
+        # Create zoom buffer
+        if requires_zoom:
+            self._zoom_buffer = Surface(view_size, flags=flags)
+            if fill_color is not None:
+                self._zoom_buffer.set_colorkey(fill_color)
+
+        # Create main buffer
+        self._buffer = Surface(buffer_size, flags=flags)
+        if fill_color is not None:
+            self._buffer.set_colorkey(fill_color)
+            self._buffer.fill(fill_color)
+
+        # Convert surfaces if needed
+        if self._clear_color == self._rgba_clear_color:
             self.data.convert_surfaces(self._buffer, True)
-        elif self._clear_color is not self._rgb_clear_color:
-            if requires_zoom_buffer:
-                self._zoom_buffer = Surface(view_size, flags=pygame.RLEACCEL)
-                self._zoom_buffer.set_colorkey(self._clear_color)
-            self._buffer = Surface(buffer_size, flags=pygame.RLEACCEL)
-            self._buffer.set_colorkey(self._clear_color)
-            self._buffer.fill(self._clear_color)
 
     def _initialize_buffers(self, view_size: tuple[int, int]) -> None:
         """
@@ -633,10 +647,6 @@ class BufferedRenderer:
         Args:
             view_size: size of the draw area
         """
-
-        def make_rect(x: int, y: int) -> Rect:
-            return Rect((x * tw, y * th), (tw, th))
-
         tw, th = self.data.tile_size
         mw, mh = self.data.map_size
         buffer_tile_width = int(math.ceil(view_size[0] / tw) + 1)
@@ -655,8 +665,9 @@ class BufferedRenderer:
         self._y_offset = 0
 
         rects = [
-            make_rect(*i)
-            for i in product(range(buffer_tile_width), range(buffer_tile_height))
+            Rect((x * tw, y * th), (tw, th))
+            for y in range(buffer_tile_height)
+            for x in range(buffer_tile_width)
         ]
 
         # Depth controls quadtree recursion. Higher values produce finer spatial
@@ -665,6 +676,8 @@ class BufferedRenderer:
         # fragmentation and overhead.
         self._layer_quadtree = FastQuadTree(items=rects, depth=4)
 
+        if self._buffer is None:
+            return
         self.redraw_tiles(self._buffer)
 
     def _flush_tile_queue(self, surface: Surface) -> None:
@@ -680,7 +693,10 @@ class BufferedRenderer:
 
         self.data.prepare_tiles(self._tile_view)
 
-        blit_list = [
-            (image, (x * tw - ltw, y * th - tth)) for x, y, l, image in self._tile_queue
-        ]
-        surface.blits(blit_list, doreturn=False)
+        surface.blits(
+            (
+                (image, (x * tw - ltw, y * th - tth))
+                for x, y, l, image in self._tile_queue
+            ),
+            doreturn=False,
+        )

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from heapq import heappop, heappush
 from itertools import product
 from typing import Any, Optional
@@ -99,6 +99,9 @@ class PyscrollDataAdapter(ABC):
     def _get_tile_gid(self, x: int, y: int, l: int) -> Optional[int]:
         """Return the tile GID at coordinates, or None."""
         ...
+
+    def convert_surfaces(self, surface: Surface, alpha: bool) -> None:
+        pass
 
     def pixel_to_tile(self, px: float, py: float) -> tuple[int, int]:
         """
