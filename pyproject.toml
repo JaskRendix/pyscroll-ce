@@ -9,7 +9,7 @@ description = "Fast scrolling maps library for pygame"
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
-    {name = "bitcraft", email = "leif.theden@gmail.com"}
+    {name = "Giorgio", email = "menzigi@duck.com"}
 ]
 classifiers = [
     "Intended Audience :: Developers",
