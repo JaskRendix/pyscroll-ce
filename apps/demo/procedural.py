@@ -61,7 +61,7 @@ def main():
         data.process_animation_queue(renderer._tile_view)
 
         screen.fill((0, 0, 0))
-        renderer.draw(screen, screen.get_rect())
+        renderer.draw(screen, screen.get_rect(), [])
         pygame.display.flip()
 
         clock.tick(60)

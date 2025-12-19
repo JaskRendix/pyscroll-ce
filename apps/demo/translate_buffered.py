@@ -62,7 +62,7 @@ class TranslateTest:
             self.screen.fill((30, 30, 30))
 
             # Draw map
-            self.map_layer.draw(self.screen, self.screen.get_rect())
+            self.map_layer.draw(self.screen, self.screen.get_rect(), [])
 
             # Draw translated rects
             for spr in self.sprites:

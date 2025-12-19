@@ -124,11 +124,17 @@ Example: rendering custom surfaces with layer positions.
 map_layer = pyscroll.BufferedRenderer(map_data, map_size)
 
 def game_engine_draw():
-    surfaces = []
+    surfaces: list[Renderable] = []
+
     for game_object in my_game_engine:
-        surface = game_object.get_surface()
-        rect = game_object.get_screen_rect()
-        surfaces.append((surface, rect, game_object.layer))
+        surfaces.append(
+            Renderable(
+                layer=game_object.layer,
+                rect=game_object.get_screen_rect(),
+                surface=game_object.get_surface(),
+                blendmode=None,
+            )
+        )
 
     map_layer.draw(screen, screen.get_rect(), surfaces)
 ```

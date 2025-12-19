@@ -23,6 +23,7 @@ from pyscroll.quadtree import FastQuadTree
 if TYPE_CHECKING:
     from pyscroll.animation import AnimationToken
     from pyscroll.data import PyscrollDataAdapter
+    from pyscroll.group import Renderable
 
 log = logging.getLogger(__file__)
 
@@ -226,30 +227,36 @@ class BufferedRenderer:
             self._tile_view.move_ip(dx, dy)
             self.redraw_tiles(self._buffer)
 
-    def draw(self, surface: Surface, rect: Rect, surfaces: list[Surface] = []) -> Rect:
+    def draw(self, surface: Surface, rect: Rect, surfaces: list[Renderable]) -> Rect:
         """
-        Draw the map onto a surface.
+        Draw the map and any additional renderable objects onto the destination surface.
 
-        pass a rect that defines the draw area for:
-            drawing to an area smaller that the whole window/screen
+        This method renders the visible portion of the tilemap into the given `surface`,
+        optionally interleaving additional sprite-like objects provided through the
+        `surfaces` list. These objects must be instances of `Renderable`, a dataclass
+        containing:
 
-        surfaces may optionally be passed that will be blitted onto the surface.
-        this must be a sequence of tuples containing a layer number, image, and
-        rect in screen coordinates.  surfaces will be drawn in order passed,
-        and will be correctly drawn with tiles from a higher layer overlapping
-        the surface.
+            - layer: int
+                The logical layer index used for depth sorting.
+            - rect: Rect | FRect
+                The screen-space rectangle where the object should be drawn.
+            - surface: Surface | None
+                The image to draw. If None, the entry contributes only to damage
+                calculations but produces no blit.
+            - blendmode: Any
+                Optional pygame blend mode flags.
 
-        surfaces list should be in the following format:
-        [ (layer, surface, rect), ... ]
-
-        or this:
-        [ (layer, surface, rect, blendmode_flags), ... ]
+        The `surfaces` list may be empty. When provided, each Renderable is drawn
+        in correct depth order relative to the tile layers, ensuring that sprites
+        can appear above or below map tiles depending on their assigned layer.
 
         Args:
-            surface: surface to draw to
-            rect: area to draw to
-            surfaces: optional sequence of surfaces to interlace between tiles
-            rect: area that was drawn over
+            surface: The destination pygame Surface to draw into.
+            rect: The screen-space region to update.
+            surfaces: A list of Renderable objects to interleave with the tilemap.
+
+        Returns:
+            A Rect representing the area of the screen that was updated.
         """
         if self._zoom_level == 1.0:
             self._render_map(surface, rect, surfaces)
@@ -401,15 +408,14 @@ class BufferedRenderer:
         return retval
 
     def _render_map(
-        self, surface: Surface, rect: Rect, surfaces: list[Surface]
+        self, surface: Surface, rect: Rect, surfaces: list[Renderable]
     ) -> None:
         """
-        Render the map and optional surfaces to destination surface.
+        Render the visible portion of the tilemap into `surface`, optionally
+        interleaving additional Renderable objects.
 
-        Args:
-            surface: pygame surface to draw to
-            rect: area to draw to
-            surfaces: optional sequence of surfaces to interlace between tiles
+        The `surfaces` list may be empty. When provided, each Renderable is drawn
+        with correct depth ordering relative to the tile layers.
         """
         self._tile_queue = self.data.process_animation_queue(self._tile_view)
         self._tile_queue and self._flush_tile_queue(self._buffer)
@@ -439,32 +445,34 @@ class BufferedRenderer:
         )
         surface.fill(clear_color, area)
 
-    def _draw_surfaces(self, surface: Surface, offset: Vector2DInt, surfaces) -> None:
+    def _draw_surfaces(
+        self, surface: Surface, offset: Vector2DInt, surfaces: list[Renderable]
+    ) -> None:
         """
-        Draw surfaces while correcting overlapping tile layers.
+        Draw Renderable objects onto the map buffer, ensuring correct depth
+        ordering and handling tile overlap.
 
         Args:
-            surface: destination
-            offset: offset to compensate for buffer alignment
-            surfaces: sequence of surfaces to blit
+            surface: The destination surface to draw into.
+            offset: Pixel offset applied to align renderables with the map buffer.
+            surfaces: A list of Renderable objects to interleave with tile layers.
         """
         ox, oy = offset
         left, top = self._tile_view.topleft
         tile_layers = tuple(sorted(self.data.visible_tile_layers))
         top_layer = tile_layers[-1]
-        blit_list = list()
+        blit_list = []
         sprite_damage = set()
         order = 0
 
         # get tile that sprites overlap
-        for i in surfaces:
-            s, r, l = i[:3]
+        for renderable in surfaces:
 
             # sprite must not be over the top layer for damage to matter
-            if l <= top_layer:
-                damage_rect = Rect(i[1])
+            if renderable.layer <= top_layer:
+                damage_rect = Rect(renderable.rect)
                 damage_rect.move_ip(ox, oy)
-                # tall sprites only damage a portion of the bottom of their sprite
+
                 if self.tall_sprites:
                     damage_rect = Rect(
                         damage_rect.x,
@@ -472,16 +480,22 @@ class BufferedRenderer:
                         damage_rect.width,
                         self.tall_sprites,
                     )
+
                 for hit_rect in self._layer_quadtree.hit(damage_rect):
-                    sprite_damage.add((l, hit_rect))
+                    sprite_damage.add((renderable.layer, hit_rect))
 
             # add surface to draw list
-            try:
-                blend = i[3]
-            except IndexError:
-                blend = None
-            x, y, w, h = r
-            blit_op = l, 1, x, y, order, s, blend
+            blend = renderable.blendmode
+            x, y, w, h = renderable.rect
+            blit_op = (
+                renderable.layer,
+                1,  # priority
+                x,
+                y,
+                order,
+                renderable.surface,
+                blend,
+            )
             blit_list.append(blit_op)
             order += 1
 

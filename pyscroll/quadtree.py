@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from itertools import chain
 from collections.abc import Sequence
+from itertools import chain
 from typing import Optional
 
 from pygame.rect import Rect

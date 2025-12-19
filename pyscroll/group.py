@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from pygame.rect import FRect, Rect
 from pygame.sprite import LayeredUpdates, Sprite
@@ -10,6 +11,14 @@ from pyscroll.common import Vector2D
 
 if TYPE_CHECKING:
     from pyscroll.orthographic import BufferedRenderer
+
+
+@dataclass
+class Renderable:
+    layer: int
+    rect: Rect | FRect
+    surface: Surface | None = None
+    blendmode: Any = None
 
 
 class PyscrollGroup(LayeredUpdates[Sprite]):
@@ -39,7 +48,7 @@ class PyscrollGroup(LayeredUpdates[Sprite]):
         view_rect = map_layer.view_rect
 
         spritedict = self.spritedict
-        renderables: list[tuple[Surface | None, FRect | Rect, int, Any]] = []
+        renderables: list[Renderable] = []
 
         for spr in self.sprites():
             rect = spr.rect
@@ -48,15 +57,15 @@ class PyscrollGroup(LayeredUpdates[Sprite]):
                 new_rect = rect.move(ox, oy)
                 spritedict[spr] = new_rect
 
-                # Direct tuple creation (faster than dataclasses in tight loops)
                 renderables.append(
-                    (
-                        spr.image,
-                        new_rect,
-                        self.get_layer_of_sprite(spr),
-                        getattr(spr, "blendmode", None),
+                    Renderable(
+                        layer=self.get_layer_of_sprite(spr),
+                        rect=new_rect,
+                        surface=spr.image,
+                        blendmode=getattr(spr, "blendmode", None),
                     )
                 )
 
         self.lostsprites = []
-        return map_layer.draw(surface, surface.get_rect(), cast(list[Any], renderables))
+
+        return map_layer.draw(surface, surface.get_rect(), renderables)

@@ -87,7 +87,7 @@ class ScrollTest:
         self.running = False
 
     def draw(self) -> None:
-        self.map_layer.draw(self.screen, self.screen.get_rect())
+        self.map_layer.draw(self.screen, self.screen.get_rect(), [])
         self.draw_text()
 
     def draw_text(self) -> None:
