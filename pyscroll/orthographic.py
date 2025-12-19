@@ -450,7 +450,6 @@ class BufferedRenderer:
         """
         ox, oy = offset
         left, top = self._tile_view.topleft
-        get_tile = self.data.get_tile_image
         tile_layers = tuple(sorted(self.data.visible_tile_layers))
         top_layer = tile_layers[-1]
         blit_list = list()
@@ -501,7 +500,7 @@ class BufferedRenderer:
             ty = y // h + top
             # TODO: heightmap
             for l in tile_layers:
-                tile = get_tile(tx, ty, l)
+                tile = self.data.get_tile_image(tx, ty, l)
                 if tile:
                     sx = x - ox
                     sy = y - oy

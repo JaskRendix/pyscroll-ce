@@ -136,9 +136,7 @@ class PyscrollDataAdapter(ABC):
         except IndexError:
             return new_tiles
 
-        new_tiles_append = new_tiles.append
         tile_layers = tuple(self.visible_tile_layers)
-        get_tile_image = self.get_tile_image
 
         # test if the next scheduled tile change is ready
         while self._animation_queue[0].next <= self._last_time:
@@ -165,13 +163,13 @@ class PyscrollDataAdapter(ABC):
                         if layer == l:
 
                             # queue the new animated tile
-                            new_tiles_append((x, y, layer, next_frame.image))
+                            new_tiles.append((x, y, layer, next_frame.image))
                         else:
 
                             # queue the normal tile
-                            image = get_tile_image(x, y, layer)
+                            image = self.get_tile_image(x, y, layer)
                             if image:
-                                new_tiles_append((x, y, layer, image))
+                                new_tiles.append((x, y, layer, image))
 
                 # not on screen, but was previously.  clear it.
                 else:
@@ -241,7 +239,7 @@ class PyscrollDataAdapter(ABC):
             self._animation_map[gid] = ani
             heappush(self._animation_queue, ani)
 
-    def get_tile_image(self, x: int, y: int, l: int) -> Surface:
+    def get_tile_image(self, x: int, y: int, l: int) -> Optional[Surface]:
         """
         Get a tile image, respecting current animations.
 
