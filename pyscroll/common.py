@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Generator
+from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
-from typing import Any, Union
+from typing import Any, TypeVar, Union
 
 from pygame.math import Vector2
 from pygame.rect import Rect
@@ -61,3 +61,12 @@ def rect_to_bb(rect: RectLike) -> tuple[int, int, int, int]:
     else:
         x, y, w, h = rect
     return x, y, x + w - 1, y + h - 1
+
+
+T = TypeVar("T")
+
+
+def rev(seq: Sequence[T], start: int, stop: int) -> Iterable[tuple[int, T]]:
+    if start < 0:
+        start = 0
+    return enumerate(seq[start : stop + 1], start)

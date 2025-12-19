@@ -25,7 +25,7 @@ except ImportError:
     pass
 
 from pyscroll.animation import AnimationFrame, AnimationToken
-from pyscroll.common import RectLike, Vector2DInt, Vector3DInt, rect_to_bb
+from pyscroll.common import RectLike, Vector2DInt, Vector3DInt, rect_to_bb, rev
 
 __all__ = (
     "PyscrollDataAdapter",
@@ -86,7 +86,7 @@ class PyscrollDataAdapter(ABC):
         ...
 
     @abstractmethod
-    def _get_tile_image_by_id(self, id: int) -> Surface:
+    def _get_tile_image_by_id(self, id: int) -> Optional[Surface]:
         """Return image by tile ID."""
         ...
 
@@ -225,8 +225,9 @@ class PyscrollDataAdapter(ABC):
             frames: list[AnimationFrame] = []
             for frame_gid, frame_duration in frame_data:
                 image = self._get_tile_image_by_id(frame_gid)
-                # Convert ms → seconds
-                frames.append(AnimationFrame(image, frame_duration / 1000.0))
+                if image:
+                    # Convert ms → seconds
+                    frames.append(AnimationFrame(image, frame_duration / 1000.0))
 
             # the following line is slow when loading maps, but avoids overhead when rendering
             # positions = set(self.tmx.get_tile_locations_by_gid(gid))
@@ -391,17 +392,12 @@ class TiledMapData(PyscrollDataAdapter):
         except ValueError:
             return None
 
-    def _get_tile_image_by_id(self, id: int) -> Surface:
+    def _get_tile_image_by_id(self, id: int) -> Optional[Surface]:
         return self.tmx.images[id]
 
     def get_tile_images_by_rect(
         self, view: RectLike
     ) -> Iterable[tuple[int, int, int, Surface]]:
-        def rev(seq: Sequence[int], start: int, stop: int) -> enumerate[int]:
-            if start < 0:
-                start = 0
-            return enumerate(seq[start : stop + 1], start)
-
         x1, y1, x2, y2 = rect_to_bb(view)
         images = self.tmx.images
         layers = self.tmx.layers
@@ -508,7 +504,8 @@ class MapAggregator(PyscrollDataAdapter):
                 frames: list[AnimationFrame] = []
                 for frame_gid, frame_duration in frame_data:
                     image = data._get_tile_image_by_id(frame_gid)
-                    frames.append(AnimationFrame(image, frame_duration / 1000.0))
+                    if image:
+                        frames.append(AnimationFrame(image, frame_duration / 1000.0))
                 ani = AnimationToken(set(), frames, self._last_time)
                 self._animation_map[gid] = ani
                 heappush(self._animation_queue, ani)
