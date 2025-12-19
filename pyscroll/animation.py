@@ -6,8 +6,6 @@ from typing import Union
 
 from pygame.surface import Surface
 
-from pyscroll.common import Vector3DInt
-
 TimeLike = Union[float, int]
 
 __all__ = ("AnimationFrame", "AnimationToken")
@@ -52,7 +50,7 @@ class AnimationToken:
 
     def __init__(
         self,
-        positions: set[Vector3DInt],
+        positions: set[tuple[int, int, int]],
         frames: Sequence[AnimationFrame],
         initial_time: float = 0.0,
         loop: bool = True,

@@ -25,7 +25,7 @@ except ImportError:
     pass
 
 from pyscroll.animation import AnimationFrame, AnimationToken
-from pyscroll.common import RectLike, Vector2DInt, Vector3DInt, rect_to_bb, rev
+from pyscroll.common import RectLike, rect_to_bb, rev
 
 __all__ = (
     "PyscrollDataAdapter",
@@ -47,7 +47,7 @@ class PyscrollDataAdapter(ABC):
         # list of animation tokens
         self._animation_queue: list[AnimationToken] = []
         # mapping of tile substitutions when animated
-        self._animated_tile: dict[Vector3DInt, Surface] = {}
+        self._animated_tile: dict[tuple[int, int, int], Surface] = {}
         # track the tiles on screen with animations
         self._tracked_tiles = set()
         # Animation Control
@@ -60,13 +60,13 @@ class PyscrollDataAdapter(ABC):
 
     @property
     @abstractmethod
-    def tile_size(self) -> Vector2DInt:
+    def tile_size(self) -> tuple[int, int]:
         """Return (tilewidth, tileheight)."""
         ...
 
     @property
     @abstractmethod
-    def map_size(self) -> Vector2DInt:
+    def map_size(self) -> tuple[int, int]:
         """Return (mapwidth, mapheight)."""
         ...
 
@@ -100,7 +100,7 @@ class PyscrollDataAdapter(ABC):
         """Return the tile GID at coordinates, or None."""
         ...
 
-    def pixel_to_tile(self, px: float, py: float) -> Vector2DInt:
+    def pixel_to_tile(self, px: float, py: float) -> tuple[int, int]:
         """
         Translates pixel coordinates (float) to map tile coordinates (int).
         """
@@ -230,7 +230,7 @@ class PyscrollDataAdapter(ABC):
             # locations of an animation, but searching for their locations
             # is slow. so it will be updated as the map is drawn.
 
-            positions: set[Vector3DInt] = set()
+            positions: set[tuple[int, int, int]] = set()
             ani = AnimationToken(positions, frames, self._last_time)
             self._animation_map[gid] = ani
             heappush(self._animation_queue, ani)
@@ -244,7 +244,7 @@ class PyscrollDataAdapter(ABC):
             y: y coordinate
             l: layer
         """
-        position: Vector3DInt = (x, y, l)
+        position: tuple[int, int, int] = (x, y, l)
 
         try:
             return self._animated_tile[position]
@@ -355,11 +355,11 @@ class TiledMapData(PyscrollDataAdapter):
         self.tmx.images = images
 
     @property
-    def tile_size(self) -> Vector2DInt:
+    def tile_size(self) -> tuple[int, int]:
         return self.tmx.tilewidth, self.tmx.tileheight
 
     @property
-    def map_size(self) -> Vector2DInt:
+    def map_size(self) -> tuple[int, int]:
         return self.tmx.width, self.tmx.height
 
     @property
@@ -429,7 +429,7 @@ class MapAggregator(PyscrollDataAdapter):
     - Dynamic map removal with re-normalization
     """
 
-    def __init__(self, tile_size: Vector2DInt, normalize: bool = True) -> None:
+    def __init__(self, tile_size: tuple[int, int], normalize: bool = True) -> None:
         super().__init__()
         self._tile_size = tile_size
         self._normalize = normalize
@@ -441,11 +441,11 @@ class MapAggregator(PyscrollDataAdapter):
         self._tracked_gids: set[int] = set()
 
     @property
-    def tile_size(self) -> Vector2DInt:
+    def tile_size(self) -> tuple[int, int]:
         return self._tile_size
 
     @property
-    def map_size(self) -> Vector2DInt:
+    def map_size(self) -> tuple[int, int]:
         return self._map_size
 
     @property
@@ -456,7 +456,7 @@ class MapAggregator(PyscrollDataAdapter):
         return sorted(layers)
 
     def add_map(
-        self, data: PyscrollDataAdapter, offset: Vector2DInt, layer: int = 0
+        self, data: PyscrollDataAdapter, offset: tuple[int, int], layer: int = 0
     ) -> None:
         if data.tile_size != self.tile_size:
             raise ValueError("Tile sizes must be the same for all maps.")
@@ -606,7 +606,7 @@ class ProceduralData(PyscrollDataAdapter):
     Generates a map with three layers: [0: Ground, 1: Detail, 2: Overlay].
     """
 
-    _TILE_SIZE: Vector2DInt = (32, 32)
+    _TILE_SIZE: tuple[int, int] = (32, 32)
     _MAP_WIDTH: int = 40
     _MAP_HEIGHT: int = 30
     _LAYER_COUNT: int = 3
@@ -626,11 +626,11 @@ class ProceduralData(PyscrollDataAdapter):
         self._tracked_gids: set[int] = set()
 
     @property
-    def tile_size(self) -> Vector2DInt:
+    def tile_size(self) -> tuple[int, int]:
         return self._TILE_SIZE
 
     @property
-    def map_size(self) -> Vector2DInt:
+    def map_size(self) -> tuple[int, int]:
         return (self._MAP_WIDTH, self._MAP_HEIGHT)
 
     @property

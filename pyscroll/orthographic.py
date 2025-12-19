@@ -11,13 +11,7 @@ import pygame
 from pygame.rect import Rect
 from pygame.surface import Surface
 
-from pyscroll.common import (
-    RectLike,
-    Vector2D,
-    Vector2DInt,
-    Vector3DInt,
-    surface_clipping_context,
-)
+from pyscroll.common import RectLike, Vector2D, surface_clipping_context
 from pyscroll.quadtree import FastQuadTree
 
 if TYPE_CHECKING:
@@ -26,6 +20,10 @@ if TYPE_CHECKING:
     from pyscroll.group import Renderable
 
 log = logging.getLogger(__file__)
+
+
+Blit2 = tuple[Surface, tuple[int | float, int | float]]
+Blit3 = tuple[Surface, tuple[int | float, int | float], int]
 
 
 class BufferedRenderer:
@@ -44,13 +42,13 @@ class BufferedRenderer:
     def __init__(
         self,
         data: PyscrollDataAdapter,
-        size: Vector2DInt,
+        size: tuple[int, int],
         clamp_camera: bool = True,
-        colorkey: Optional[Vector3DInt] = None,
+        colorkey: Optional[tuple[int, int, int]] = None,
         alpha: bool = False,
         time_source: Callable[[], float] = time.time,
         scaling_function: Callable[
-            [Surface, Vector2DInt], Surface
+            [Surface, tuple[int, int]], Surface
         ] = pygame.transform.scale,
         tall_sprites: int = 0,
         sprite_damage_height: int = 0,
@@ -102,7 +100,7 @@ class BufferedRenderer:
         # rect of the previous map blit when map edges are visible
         self._previous_blit = Rect(0, 0, 0, 0)
         # actual pixel size of the view, as it occupies the screen
-        self._size: Vector2DInt = (0, 0)
+        self._size: tuple[int, int] = (0, 0)
         # size of dirty tile edge that will trigger full redraw
         self._redraw_cutoff: int = 0
         # offsets are used to scroll map in sub-tile increments
@@ -143,7 +141,7 @@ class BufferedRenderer:
         self.data.reload_animations()
         self.redraw_tiles(self._buffer)
 
-    def scroll(self, vector: Vector2DInt) -> None:
+    def scroll(self, vector: tuple[int, int]) -> None:
         """
         Scroll the background in pixels.
 
@@ -289,7 +287,7 @@ class BufferedRenderer:
         self._real_ratio_x = float(self._size[0]) / zoom_buffer_size[0]
         self._real_ratio_y = float(self._size[1]) / zoom_buffer_size[1]
 
-    def set_size(self, size: Vector2DInt) -> None:
+    def set_size(self, size: tuple[int, int]) -> None:
         """
         Set the size of the map in pixels.
 
@@ -315,7 +313,7 @@ class BufferedRenderer:
         self._tile_queue = self.data.get_tile_images_by_rect(self._tile_view)
         self._flush_tile_queue(surface)
 
-    def get_center_offset(self) -> Vector2DInt:
+    def get_center_offset(self) -> tuple[int, int]:
         """
         Return x, y pair that will change world coords to screen coords.
         """
@@ -324,7 +322,7 @@ class BufferedRenderer:
             -self.view_rect.centery + self._half_height,
         )
 
-    def translate_point(self, point: Vector2D) -> Vector2DInt:
+    def translate_point(self, point: Vector2D) -> tuple[int, int]:
         """
         Translate world coordinates and return screen coordinates.
 
@@ -358,14 +356,14 @@ class BufferedRenderer:
                 round((x + mx) * rx), round((y + my) * ry), round(w * rx), round(h * ry)
             )
 
-    def translate_points(self, points: list[Vector2D]) -> list[Vector2DInt]:
+    def translate_points(self, points: list[Vector2D]) -> list[tuple[int, int]]:
         """
         Translate coordinates and return screen coordinates.
 
         Args:
             points: points to translate
         """
-        retval: list[Vector2DInt] = []
+        retval: list[tuple[int, int]] = []
         append = retval.append
         sx, sy = self.get_center_offset()
         if self._zoom_level == 1.0:
@@ -446,7 +444,7 @@ class BufferedRenderer:
         surface.fill(clear_color, area)
 
     def _draw_surfaces(
-        self, surface: Surface, offset: Vector2DInt, surfaces: list[Renderable]
+        self, surface: Surface, offset: tuple[int, int], surfaces: list[Renderable]
     ) -> None:
         """
         Draw Renderable objects onto the map buffer, ensuring correct depth
@@ -530,15 +528,22 @@ class BufferedRenderer:
                 blit_list.extend(column)
             column.clear()
 
-        # --- Pass 3: final blit ---
+        # Final blit
         blit_list.sort()
 
-        draw_list2 = []
+        draw_list2: list[Blit2 | Blit3] = []
         for l, priority, x, y, order, s, blend in blit_list:
-            if blend is not None:
-                draw_list2.append((s, (x, y), None, blend))
-            else:
+            if s is None:
+                continue  # cannot blit a None surface
+
+            if blend is None:
+                # 2‑tuple form: (surface, dest)
                 draw_list2.append((s, (x, y)))
+            else:
+                # 3‑tuple form: (surface, dest, special_flags)
+                # mypy requires special_flags to be int
+                flags = int(blend)
+                draw_list2.append((s, (x, y), flags))
 
         surface.blits(draw_list2, doreturn=False)
 
@@ -582,14 +587,18 @@ class BufferedRenderer:
             append((v.left, v.top, v.width, -dy))
 
     @staticmethod
-    def _calculate_zoom_buffer_size(size: Vector2DInt, value: float) -> Vector2DInt:
+    def _calculate_zoom_buffer_size(
+        size: tuple[int, int], value: float
+    ) -> tuple[int, int]:
         if value <= 0:
             log.error("zoom level cannot be zero or less")
             raise ValueError
         value = 1.0 / value
         return int(size[0] * value), int(size[1] * value)
 
-    def _create_buffers(self, view_size: Vector2DInt, buffer_size: Vector2DInt) -> None:
+    def _create_buffers(
+        self, view_size: tuple[int, int], buffer_size: tuple[int, int]
+    ) -> None:
         """
         Create the buffers, taking in account pixel alpha or colorkey.
 
@@ -617,7 +626,7 @@ class BufferedRenderer:
             self._buffer.set_colorkey(self._clear_color)
             self._buffer.fill(self._clear_color)
 
-    def _initialize_buffers(self, view_size: Vector2DInt) -> None:
+    def _initialize_buffers(self, view_size: tuple[int, int]) -> None:
         """
         Create the buffers to cache tile drawing.
 

@@ -4,13 +4,15 @@ import math
 from pygame.rect import Rect
 from pygame.surface import Surface
 
-from pyscroll.common import Vector2D, Vector2DInt, Vector3DInt
+from pyscroll.common import Vector2D
 from pyscroll.orthographic import BufferedRenderer
 
 log = logging.getLogger(__file__)
 
 
-def vector3_to_iso(vector3: Vector3DInt, offset: Vector2DInt = (0, 0)) -> Vector2DInt:
+def vector3_to_iso(
+    vector3: tuple[int, int, int], offset: tuple[int, int] = (0, 0)
+) -> tuple[int, int]:
     """
     Convert 3D cartesian coordinates to isometric coordinates.
     """
@@ -22,7 +24,9 @@ def vector3_to_iso(vector3: Vector3DInt, offset: Vector2DInt = (0, 0)) -> Vector
     )
 
 
-def vector2_to_iso(vector2: Vector2DInt, offset: Vector2DInt = (0, 0)) -> Vector2DInt:
+def vector2_to_iso(
+    vector2: tuple[int, int], offset: tuple[int, int] = (0, 0)
+) -> tuple[int, int]:
     """
     Convert 2D cartesian coordinates to isometric coordinates.
     """
@@ -47,7 +51,7 @@ class IsometricBufferedRenderer(BufferedRenderer):
         if surfaces is not None:
             [(surface.blit(i[0], i[1]), i[2]) for i in surfaces]
 
-    def _initialize_buffers(self, view_size: Vector2DInt) -> None:
+    def _initialize_buffers(self, view_size: tuple[int, int]) -> None:
         """Create the buffers to cache tile drawing
 
         :param view_size: (int, int): size of the draw area

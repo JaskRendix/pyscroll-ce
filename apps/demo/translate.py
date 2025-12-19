@@ -11,8 +11,6 @@ from pygame.rect import Rect
 from pygame.sprite import Group, Sprite
 from pygame.surface import Surface
 
-from pyscroll.common import Vector2DInt
-
 
 class DummySprite(Sprite):
     def __init__(self, x: int, y: int, w: int = 32, h: int = 32) -> None:
@@ -29,13 +27,13 @@ class DummyMapLayer:
     def translate_rect(self, rect: Rect) -> Rect:
         return rect.move(-self.offset.x, -self.offset.y)
 
-    def translate_point(self, point: Vector2DInt) -> Vector2DInt:
+    def translate_point(self, point: tuple[int, int]) -> tuple[int, int]:
         return (point[0] - int(self.offset.x), point[1] - int(self.offset.y))
 
     def translate_rects(self, rects: list[Rect]) -> list[Rect]:
         return [self.translate_rect(r) for r in rects]
 
-    def translate_points(self, points: list[Vector2DInt]) -> list[Vector2DInt]:
+    def translate_points(self, points: list[tuple[int, int]]) -> list[tuple[int, int]]:
         return [self.translate_point(p) for p in points]
 
 
