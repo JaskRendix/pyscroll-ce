@@ -33,9 +33,6 @@ class BaseCamera(ABC):
         raise NotImplementedError
 
 
-Rect
-
-
 class Camera(BaseCamera):
     """
     A smooth-follow camera with optional deadzone and screen shake.
