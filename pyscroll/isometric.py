@@ -2,6 +2,7 @@ import logging
 import math
 
 from pygame.rect import Rect
+from pygame.surface import Surface
 
 from pyscroll.common import Vector2D, Vector2DInt, Vector3DInt
 from pyscroll.orthographic import BufferedRenderer
@@ -70,7 +71,7 @@ class IsometricBufferedRenderer(BufferedRenderer):
 
         self.redraw_tiles()
 
-    def _flush_tile_queue(self) -> None:
+    def _flush_tile_queue(self, surface: Surface) -> None:
         """Blits (x, y, layer) tuples to buffer from iterator"""
         iterator = self._tile_queue
         surface_blit = self._buffer.blit

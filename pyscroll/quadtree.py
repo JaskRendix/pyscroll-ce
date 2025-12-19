@@ -7,9 +7,13 @@ from typing import Optional
 from pygame.rect import Rect
 
 
-def get_rect(item) -> Rect:
+def get_rect(item: Rect | object) -> Rect:
     """Helper to consistently get a pygame.Rect from item."""
-    return item.rect if hasattr(item, "rect") else item
+    if isinstance(item, Rect):
+        return item
+    if hasattr(item, "rect") and isinstance(item.rect, Rect):
+        return item.rect
+    raise TypeError("Item must be a Rect or have a .rect attribute of type Rect")
 
 
 class FastQuadTree:
@@ -61,19 +65,47 @@ class FastQuadTree:
 
         if nw_items:
             self.nw = FastQuadTree(
-                nw_items, depth - 1, (boundary.left, boundary.top, self.cx, self.cy)
+                nw_items,
+                depth - 1,
+                Rect(
+                    self.boundary.left,
+                    self.boundary.top,
+                    self.cx - self.boundary.left,
+                    self.cy - self.boundary.top,
+                ),
             )
         if ne_items:
             self.ne = FastQuadTree(
-                ne_items, depth - 1, (self.cx, boundary.top, boundary.right, self.cy)
+                ne_items,
+                depth - 1,
+                Rect(
+                    self.cx,
+                    self.boundary.top,
+                    self.boundary.right - self.cx,
+                    self.cy - self.boundary.top,
+                ),
             )
         if se_items:
             self.se = FastQuadTree(
-                se_items, depth - 1, (self.cx, self.cy, boundary.right, boundary.bottom)
+                se_items,
+                depth - 1,
+                Rect(
+                    self.cx,
+                    self.cy,
+                    self.boundary.right - self.cx,
+                    self.boundary.bottom - self.cy,
+                ),
             )
         if sw_items:
             self.sw = FastQuadTree(
-                sw_items, depth - 1, (boundary.left, self.cy, self.cx, boundary.bottom)
+                sw_items,
+                depth - 1,
+                Rect(
+                    self.boundary.left,
+                    self.cy,
+                    self.cx - self.boundary.left,
+                    self.boundary.bottom - self.cy,
+                ),
             )
 
     def __iter__(self):

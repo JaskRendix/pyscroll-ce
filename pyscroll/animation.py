@@ -151,10 +151,10 @@ class AnimationToken:
         Returns:
             True if this token's next frame time is earlier.
         """
-        try:
+        if isinstance(other, AnimationToken):
             return self.next < other.next
-        except AttributeError:
-            return self.next < other
+        else:
+            return self.next < float(other)
 
     def __repr__(self) -> str:
         return f"AnimationToken(positions={self.positions}, frames={self.frames})"

@@ -450,7 +450,6 @@ class BufferedRenderer:
         """
         ox, oy = offset
         left, top = self._tile_view.topleft
-        hit = self._layer_quadtree.hit
         get_tile = self.data.get_tile_image
         tile_layers = tuple(sorted(self.data.visible_tile_layers))
         top_layer = tile_layers[-1]
@@ -474,7 +473,7 @@ class BufferedRenderer:
                         damage_rect.width,
                         self.tall_sprites,
                     )
-                for hit_rect in hit(damage_rect):
+                for hit_rect in self._layer_quadtree.hit(damage_rect):
                     sprite_damage.add((l, hit_rect))
 
             # add surface to draw list

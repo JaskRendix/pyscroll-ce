@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Union
+from typing import Any, Union
 
 from pygame.math import Vector2
 from pygame.rect import Rect
@@ -14,7 +15,9 @@ Vector3DInt = tuple[int, int, int]
 
 
 @contextmanager
-def surface_clipping_context(surface: Surface, clip: RectLike):
+def surface_clipping_context(
+    surface: Surface, clip: RectLike
+) -> Generator[None, Any, None]:
     original = surface.get_clip()
     surface.set_clip(clip)
     yield
