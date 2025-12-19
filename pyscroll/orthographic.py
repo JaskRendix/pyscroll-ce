@@ -27,6 +27,11 @@ ColorRGB = tuple[int, int, int]
 ColorRGBA = tuple[int, int, int, int]
 
 
+def _default_scaler(src: Surface, size: tuple[int, int], dest: Surface) -> None:
+    scaled = pygame.transform.scale(src, size)
+    dest.blit(scaled, (0, 0))
+
+
 class BufferedRenderer:
     """
     Renderer that support scrolling, zooming, layers, and animated tiles
@@ -49,8 +54,8 @@ class BufferedRenderer:
         alpha: bool = False,
         time_source: Callable[[], float] = time.time,
         scaling_function: Callable[
-            [Surface, tuple[int, int]], Surface
-        ] = pygame.transform.scale,
+            [Surface, tuple[int, int], Surface], None
+        ] = _default_scaler,
         tall_sprites: int = 0,
         sprite_damage_height: int = 0,
         zoom: float = 1.0,
@@ -139,6 +144,8 @@ class BufferedRenderer:
         """
         Reload tiles and animations for the data source.
         """
+        if self._buffer is None:
+            return
         self.data.reload_data()
         self.data.reload_animations()
         self.redraw_tiles(self._buffer)
@@ -210,6 +217,9 @@ class BufferedRenderer:
                 top = mh - vh
                 self._y_offset += dy * th
                 self._anchored_view = False
+
+        if self._buffer is None:
+            return
 
         # adjust the view if the view has changed without a redraw
         dx = int(left - self._tile_view.left)
@@ -285,6 +295,11 @@ class BufferedRenderer:
         self._zoom_level = value
         self._initialize_buffers(zoom_buffer_size)
 
+        if self._zoom_buffer is None:
+            self._real_ratio_x = 1.0
+            self._real_ratio_y = 1.0
+            return
+
         zoom_buffer_size = self._zoom_buffer.get_size()
         self._real_ratio_x = float(self._size[0]) / zoom_buffer_size[0]
         self._real_ratio_y = float(self._size[1]) / zoom_buffer_size[1]
@@ -309,6 +324,8 @@ class BufferedRenderer:
         Args:
             surface: where to draw
         """
+        if self._buffer is None:
+            return
         # TODO/BUG: Animated tiles are getting reset here
         log.debug("pyscroll buffer redraw")
         self._clear_surface(self._buffer)
@@ -417,8 +434,10 @@ class BufferedRenderer:
         The `surfaces` list may be empty. When provided, each Renderable is drawn
         with correct depth ordering relative to the tile layers.
         """
+        if self._buffer is None:
+            return
         self._tile_queue = self.data.process_animation_queue(self._tile_view)
-        self._tile_queue and self._flush_tile_queue(self._buffer)
+        self._flush_tile_queue(self._buffer)
 
         # TODO: could maybe optimize to remove just the edges, ideally by drawing lines
         if not self._anchored_view:
@@ -483,9 +502,10 @@ class BufferedRenderer:
                         self.tall_sprites,
                     )
 
-                # Collect tile cells touched by the sprite
-                for hit_rect in self._layer_quadtree.hit(damage_rect):
-                    sprite_damage.add((renderable.layer, hit_rect))
+                if self._layer_quadtree is not None:
+                    # Collect tile cells touched by the sprite
+                    for hit_rect in self._layer_quadtree.hit(damage_rect):
+                        sprite_damage.add((renderable.layer, hit_rect))
 
             # Add sprite to blit list
             x, y, w, h = renderable.rect
@@ -678,6 +698,7 @@ class BufferedRenderer:
 
         if self._buffer is None:
             return
+
         self.redraw_tiles(self._buffer)
 
     def _flush_tile_queue(self, surface: Surface) -> None:
