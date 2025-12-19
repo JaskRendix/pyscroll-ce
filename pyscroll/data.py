@@ -178,19 +178,15 @@ class PyscrollDataAdapter(ABC):
         return new_tiles
 
     def _update_time(self) -> None:
-        if not self._is_paused:
-            current_time = time.time()
-            if self._pause_mode_skip_ahead:
-                # Skip-ahead mode: catch up to real time
-                if self._paused_time > 0.0:
-                    time_offset = current_time - self._paused_time
-                    self._last_time += time_offset
-                    self._paused_time = 0.0
-                else:
-                    self._last_time = current_time
-            else:
-                # Freeze mode: resume exactly where you left off
-                self._last_time = current_time
+        if self._is_paused:
+            return
+
+        current_time = time.time()
+        if self._pause_mode_skip_ahead and self._paused_time > 0.0:
+            self._last_time += current_time - self._paused_time
+            self._paused_time = 0.0
+        else:
+            self._last_time = current_time
 
     def prepare_tiles(self, tiles: RectLike) -> None:
         """

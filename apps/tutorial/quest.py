@@ -32,6 +32,7 @@ from pygame.sprite import Sprite
 from pygame.surface import Surface
 from pytmx.util_pygame import load_pygame  # type: ignore
 
+from pyscroll.camera import Camera
 from pyscroll.data import TiledMapData
 from pyscroll.group import PyscrollGroup
 from pyscroll.orthographic import BufferedRenderer
@@ -118,6 +119,7 @@ class QuestGame:
     map_path = RESOURCES_DIR / "grasslands.tmx"
 
     def __init__(self, screen: Surface) -> None:
+        self.camera = Camera()
         self.screen = screen
         self.running = False
 
@@ -153,9 +155,6 @@ class QuestGame:
         self.group.add(self.hero)
 
     def draw(self) -> None:
-        # center the map/screen on our Hero
-        self.group.center(self.hero.rect.center)
-
         # draw the map and all sprites
         self.group.draw(self.screen)
 
@@ -214,6 +213,9 @@ class QuestGame:
         for sprite in self.group.sprites():
             if sprite.feet.collidelist(self.walls) > -1:
                 sprite.move_back(dt)
+
+        new_center = self.camera.update(self.group.view, self.hero.rect, dt)
+        self.group.center(new_center)
 
     def run(self) -> None:
         """

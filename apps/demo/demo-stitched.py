@@ -31,6 +31,7 @@ from pygame.sprite import Sprite
 from pygame.surface import Surface
 from pytmx.util_pygame import load_pygame  # type: ignore
 
+from pyscroll.camera import Camera
 from pyscroll.data import MapAggregator, TiledMapData
 from pyscroll.group import PyscrollGroup
 from pyscroll.orthographic import BufferedRenderer
@@ -91,6 +92,7 @@ class Hero(Sprite):
 
 class QuestGame:
     def __init__(self, screen: Surface) -> None:
+        self.camera = Camera()
         self.screen = screen
         self.running = False
 
@@ -129,7 +131,6 @@ class QuestGame:
         self.group.add(self.hero)
 
     def draw(self) -> None:
-        self.group.center(self.hero.rect.center)
         self.group.draw(self.screen)
 
     def handle_input(self) -> None:
@@ -168,6 +169,8 @@ class QuestGame:
 
     def update(self, dt: float) -> None:
         self.group.update(dt)
+        new_center = self.camera.update(self.group.view, self.hero.rect, dt)
+        self.group.center(new_center)
 
     def run(self) -> None:
         clock = pygame.time.Clock()

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import itertools
+from itertools import chain
 from collections.abc import Sequence
 from typing import Optional
 
@@ -108,12 +108,12 @@ class FastQuadTree:
                 ),
             )
 
-    def __iter__(self):
-        return itertools.chain(
+    def __iter__(self) -> chain[Rect]:
+        return chain(
             self.items, self.nw or [], self.ne or [], self.se or [], self.sw or []
         )
 
-    def hit(self, rect: Rect) -> set[tuple[int, int, int, int]]:
+    def hit(self, rect: Rect) -> set[tuple[int, ...]]:
         """
         Return the rect tuples that overlap with the given rect.
         """
