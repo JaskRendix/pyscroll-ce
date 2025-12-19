@@ -104,7 +104,7 @@ class Game:
         self.group = pyscroll.PyscrollGroup(map_layer=map_layer)
 
         # Camera is now external
-        self.camera = Camera()
+        self.camera = FollowCamera()
 
         # Add a sprite
         surface = pygame.image.load("my_surface.png").convert_alpha()

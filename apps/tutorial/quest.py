@@ -32,7 +32,7 @@ from pygame.sprite import Sprite
 from pygame.surface import Surface
 from pytmx.util_pygame import load_pygame  # type: ignore
 
-from pyscroll.camera import Camera
+from pyscroll.camera import FollowCamera
 from pyscroll.data import TiledMapData
 from pyscroll.group import PyscrollGroup
 from pyscroll.orthographic import BufferedRenderer
@@ -119,7 +119,7 @@ class QuestGame:
     map_path = RESOURCES_DIR / "grasslands.tmx"
 
     def __init__(self, screen: Surface) -> None:
-        self.camera = Camera()
+        self.camera = FollowCamera()
         self.screen = screen
         self.running = False
 
