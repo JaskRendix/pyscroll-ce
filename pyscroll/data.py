@@ -124,7 +124,7 @@ class PyscrollDataAdapter(ABC):
         Args:
             tile_view: Rect representing tiles on the screen
         """
-        new_tiles = list()
+        new_tiles: list[tuple[int, int, int, Surface]] = list()
 
         # verify that there are tile substitutions ready
         self._update_time()
@@ -541,14 +541,6 @@ class MapAggregator(PyscrollDataAdapter):
             mx = max(mx, rect.right)
             my = max(my, rect.bottom)
         self._map_size = (mx, my)
-
-    @property
-    def visible_tile_layers(self) -> list[int]:
-        """Return all visible layers adjusted by aggregator offsets."""
-        layers = set()
-        for data, _, z in self.maps:
-            layers.update([l + z for l in data.visible_tile_layers])
-        return sorted(layers)
 
     def get_tile_images_by_rect(
         self, view: RectLike
