@@ -3,8 +3,8 @@ import pytest
 from pygame import Rect, Surface
 
 from pyscroll.data import PyscrollDataAdapter
-from pyscroll.orthographic import SpriteRenderer
 from pyscroll.quadtree import FastQuadTree
+from pyscroll.sprite_manager import SpriteRenderer
 
 
 class DummyRenderable:

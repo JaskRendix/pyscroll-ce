@@ -3,7 +3,8 @@ import pytest
 from pygame import Rect, Surface
 
 from pyscroll.data import PyscrollDataAdapter
-from pyscroll.isometric import IsometricBufferedRenderer, IsometricSpriteRenderer
+from pyscroll.isometric import IsometricBufferedRenderer
+from pyscroll.sprite_manager import IsometricSpriteRenderer
 
 
 class DummyAdapter(PyscrollDataAdapter):

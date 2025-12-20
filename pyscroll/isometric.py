@@ -10,11 +10,8 @@ from pygame.surface import Surface
 from pyscroll.common import Vector2D, surface_clipping_context
 from pyscroll.data import PyscrollDataAdapter
 from pyscroll.group import Renderable
-from pyscroll.orthographic import (
-    BufferedRenderer,
-    SpriteRendererProtocol,
-    _default_scaler,
-)
+from pyscroll.orthographic import BufferedRenderer, _default_scaler
+from pyscroll.sprite_manager import IsometricSpriteRenderer
 
 if TYPE_CHECKING:
 
@@ -203,52 +200,3 @@ class IsometricBufferedRenderer(BufferedRenderer):
                     self._tile_view,
                     surfaces,
                 )
-
-
-class IsometricSpriteRenderer(SpriteRendererProtocol):
-    """Isometric sprite renderer with simple depth sorting."""
-
-    def render_sprites(
-        self,
-        surface: Surface,
-        offset: tuple[int, int],
-        tile_view: Rect,
-        surfaces: list[Renderable],
-    ) -> None:
-        if not surfaces:
-            return
-
-        ox, oy = offset
-
-        blit_list: list[tuple[int, int, Surface, tuple[int, int], Optional[int]]] = []
-        order = 0
-
-        for renderable in surfaces:
-            if renderable.surface is None:
-                continue
-
-            rx, ry, rw, rh = renderable.rect
-            sx = int(rx) - ox
-            sy = int(ry) - oy
-
-            depth = sy
-            position = (sx, sy)
-
-            blit_list.append(
-                (
-                    depth,
-                    order,
-                    renderable.surface,
-                    position,
-                    renderable.blendmode,
-                )
-            )
-            order += 1
-
-        blit_list.sort()
-
-        for depth, order, surf, pos, blend in blit_list:
-            if blend is None:
-                surface.blit(surf, pos)
-            else:
-                surface.blit(surf, pos, special_flags=int(blend))

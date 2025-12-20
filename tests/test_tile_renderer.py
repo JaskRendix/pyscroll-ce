@@ -2,7 +2,7 @@ import pytest
 from pygame import Rect, Surface
 
 from pyscroll.data import PyscrollDataAdapter
-from pyscroll.orthographic import TileRenderer
+from pyscroll.tile_renderer import TileRenderer
 
 
 class DummyAdapter(PyscrollDataAdapter):
