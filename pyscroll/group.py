@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any
 
 from pygame.rect import FRect, Rect
 from pygame.sprite import LayeredUpdates, Sprite

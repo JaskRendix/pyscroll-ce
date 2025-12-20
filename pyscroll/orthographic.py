@@ -22,7 +22,6 @@ log = logging.getLogger(__file__)
 
 
 Blit2 = tuple[Surface, tuple[int | float, int | float]]
-Blit3 = tuple[Surface, tuple[int | float, int | float], int]
 ColorRGB = tuple[int, int, int]
 ColorRGBA = tuple[int, int, int, int]
 
@@ -749,13 +748,18 @@ class SpriteRenderer(SpriteRendererProtocol):
 
         blit_list.sort()
 
-        draw_list: list[Blit2 | Blit3] = []
+        normal_blits: list[Blit2] = []
+
         for layer, priority, x, y, order, surf, blend in blit_list:
             if surf is None:
                 continue
-            if blend is None:
-                draw_list.append((surf, (x, y)))
-            else:
-                draw_list.append((surf, (x, y), int(blend)))
 
-        surface.blits(draw_list, doreturn=False)
+            if blend is None:
+                # safe for blits()
+                normal_blits.append((surf, (x, y)))
+            else:
+                # must use individual blit() for blend flags
+                surface.blit(surf, (x, y), special_flags=int(blend))
+
+        if normal_blits:
+            surface.blits(normal_blits, doreturn=False)
