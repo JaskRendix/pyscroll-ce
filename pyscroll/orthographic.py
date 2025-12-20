@@ -79,7 +79,6 @@ class BufferedRenderer:
             sprite_damage_height: Adjusts layering of tall sprites vs tile layers.
             zoom: View scaling factor. Use values >1 to zoom in, values <1 to zoom out.
         """
-
         # default options
         self.data = data
         self.clamp_camera = clamp_camera
@@ -88,6 +87,8 @@ class BufferedRenderer:
         self.tall_sprites = tall_sprites
         self.sprite_damage_height = sprite_damage_height
         self.map_rect = Rect(0, 0, 0, 0)
+        self._layer_quadtree: Optional[FastQuadTree] = None
+        self.tile_renderer = TileRenderer(self.data, self._clear_surface)
 
         # internal private defaults
         self._clear_color: Optional[ColorRGB | ColorRGBA]
@@ -120,12 +121,6 @@ class BufferedRenderer:
         # 'half x' attributes are used to reduce division ops.
         self._half_width: int = 0
         self._half_height: int = 0
-        # tiles queued to be draw onto buffer
-        self._tile_queue: Iterable[tuple[int, int, int, Surface]] = ()
-        # heap queue of animation token;  schedules tile changes
-        self._animation_queue: Optional[list[AnimationToken]] = None
-        # used to draw tiles that overlap optional surfaces
-        self._layer_quadtree: Optional[FastQuadTree] = None
         # used to speed up zoom operations
         self._zoom_buffer: Optional[Surface] = None
         self._zoom_level = zoom
@@ -229,8 +224,12 @@ class BufferedRenderer:
         if view_change and (view_change <= self._redraw_cutoff):
             self._buffer.scroll(-dx * tw, -dy * th)
             self._tile_view.move_ip(dx, dy)
-            self._queue_edge_tiles(dx, dy)
-            self._flush_tile_queue(self._buffer)
+            tile_queue = self.tile_renderer.queue_edge_tiles(
+                self._tile_view, dx, dy, self._buffer
+            )
+            self.tile_renderer.flush_tile_queue(
+                tile_queue, self._tile_view, self._buffer
+            )
 
         elif view_change > self._redraw_cutoff:
             log.debug("scrolling too quickly.  redraw forced")
@@ -329,8 +328,8 @@ class BufferedRenderer:
         # TODO/BUG: Animated tiles are getting reset here
         log.debug("pyscroll buffer redraw")
         self._clear_surface(self._buffer)
-        self._tile_queue = self.data.get_tile_images_by_rect(self._tile_view)
-        self._flush_tile_queue(surface)
+        tile_queue = self.data.get_tile_images_by_rect(self._tile_view)
+        self.tile_renderer.flush_tile_queue(tile_queue, self._tile_view, self._buffer)
 
     def get_center_offset(self) -> tuple[int, int]:
         """
@@ -436,8 +435,8 @@ class BufferedRenderer:
         """
         if self._buffer is None:
             return
-        self._tile_queue = self.data.process_animation_queue(self._tile_view)
-        self._flush_tile_queue(self._buffer)
+        tile_queue = self.data.process_animation_queue(self._tile_view)
+        self.tile_renderer.flush_tile_queue(tile_queue, self._tile_view, self._buffer)
 
         # TODO: could maybe optimize to remove just the edges, ideally by drawing lines
         if not self._anchored_view:
@@ -449,7 +448,9 @@ class BufferedRenderer:
             self._previous_blit = surface.blit(self._buffer, offset)
             if surfaces:
                 surfaces_offset = -offset[0], -offset[1]
-                self._draw_surfaces(surface, surfaces_offset, surfaces)
+                self.sprite_renderer.render_sprites(
+                    surface, surfaces_offset, self._tile_view, surfaces
+                )
 
     def _clear_surface(self, surface: Surface, area: Optional[RectLike] = None) -> None:
         """
@@ -463,152 +464,6 @@ class BufferedRenderer:
             self._rgb_clear_color if self._clear_color is None else self._clear_color
         )
         surface.fill(clear_color, area)
-
-    def _draw_surfaces(
-        self, surface: Surface, offset: tuple[int, int], surfaces: list[Renderable]
-    ) -> None:
-        """
-        Draw Renderable objects onto the map buffer, ensuring correct depth
-        ordering and handling tile overlap.
-
-        Args:
-            surface: The destination surface to draw into.
-            offset: Pixel offset applied to align renderables with the map buffer.
-            surfaces: A list of Renderable objects to interleave with tile layers.
-        """
-        ox, oy = offset
-        left, top = self._tile_view.topleft
-        tile_layers = tuple(sorted(self.data.visible_tile_layers))
-        top_layer = tile_layers[-1]
-
-        blit_list = []
-        sprite_damage: set[tuple[int, tuple[int, ...]]] = set()
-        order = 0
-
-        # Collect sprite blits + damage rects
-        for renderable in surfaces:
-
-            # Sprites at or below the top tile layer can damage tiles
-            if renderable.layer <= top_layer:
-                damage_rect = Rect(renderable.rect)
-                damage_rect.move_ip(ox, oy)
-
-                # Tall sprites only damage the bottom portion
-                if self.tall_sprites:
-                    damage_rect = Rect(
-                        damage_rect.x,
-                        damage_rect.y + (damage_rect.height - self.tall_sprites),
-                        damage_rect.width,
-                        self.tall_sprites,
-                    )
-
-                if self._layer_quadtree is not None:
-                    # Collect tile cells touched by the sprite
-                    for hit_rect in self._layer_quadtree.hit(damage_rect):
-                        sprite_damage.add((renderable.layer, hit_rect))
-
-            # Add sprite to blit list
-            x, y, w, h = renderable.rect
-            blit_list.append(
-                (
-                    renderable.layer,
-                    1,  # priority: sprites above tiles
-                    x,
-                    y,
-                    order,
-                    renderable.surface,
-                    renderable.blendmode,
-                )
-            )
-            order += 1
-
-        # Tile overlap correction
-        # TODO: heightmap to avoid checking tiles in each cell
-        column = []
-        for dl, d_rect in sprite_damage:
-            x, y, w, h = d_rect
-            tx = x // w + left
-            ty = y // h + top
-
-            is_over = False
-            for l in tile_layers:
-                tile = self.data.get_tile_image(tx, ty, l)
-                if tile:
-                    sx = x - ox
-                    sy = y - oy
-
-                    # If the damaged layer is below this tile layer,
-                    # the tile must be redrawn above the sprite.
-                    if dl <= l:
-                        is_over = True
-
-                    column.append((l, 0, sx, sy, order, tile, None))
-                    order += 1
-
-            # Only draw the column if the sprite is actually under tiles
-            if is_over:
-                blit_list.extend(column)
-            column.clear()
-
-        # Final blit
-        blit_list.sort()
-
-        draw_list2: list[Blit2 | Blit3] = []
-        for l, priority, x, y, order, s, blend in blit_list:
-            if s is None:
-                continue  # cannot blit a None surface
-
-            if blend is None:
-                # 2‑tuple form: (surface, dest)
-                draw_list2.append((s, (x, y)))
-            else:
-                # 3‑tuple form: (surface, dest, special_flags)
-                # mypy requires special_flags to be int
-                flags = int(blend)
-                draw_list2.append((s, (x, y), flags))
-
-        surface.blits(draw_list2, doreturn=False)
-
-    def _queue_edge_tiles(self, dx: int, dy: int) -> None:
-        """
-        Queue edge tiles and clear edge areas on buffer if needed.
-
-        Args:
-            dx: Edge along X axis to enqueue
-            dy: Edge along Y axis to enqueue
-        """
-        v = self._tile_view
-        tw, th = self.data.tile_size
-
-        queue: list[tuple[int, int, int, Surface]] = []
-
-        def append(rect: RectLike) -> None:
-            queue.extend(self.data.get_tile_images_by_rect(rect))
-            buffer = self._buffer
-            if buffer is None:
-                return
-            # TODO: optimize so fill is only used when map is smaller than buffer
-            self._clear_surface(
-                buffer,
-                (
-                    (rect[0] - v.left) * tw,
-                    (rect[1] - v.top) * th,
-                    rect[2] * tw,
-                    rect[3] * th,
-                ),
-            )
-
-        if dx > 0:
-            append((v.right - 1, v.top, dx, v.height))
-        elif dx < 0:
-            append((v.left, v.top, -dx, v.height))
-
-        if dy > 0:
-            append((v.left, v.bottom - 1, v.width, dy))
-        elif dy < 0:
-            append((v.left, v.top, v.width, -dy))
-
-        self._tile_queue = iter(queue)
 
     @staticmethod
     def _calculate_zoom_buffer_size(
@@ -695,29 +550,212 @@ class BufferedRenderer:
         # collision precision, while values ≥6 can degrade performance due to
         # fragmentation and overhead.
         self._layer_quadtree = FastQuadTree(items=rects, depth=4)
+        self.sprite_renderer: SpriteRendererProtocol = SpriteRenderer(
+            self.data, self._layer_quadtree, self.tall_sprites
+        )
 
         if self._buffer is None:
             return
 
         self.redraw_tiles(self._buffer)
 
-    def _flush_tile_queue(self, surface: Surface) -> None:
-        """
-        Blit the queued tiles and block until the tile queue is empty.
 
-        Args:
-            surface: surface to draw onto
+class TileRenderer:
+    def __init__(
+        self,
+        data: PyscrollDataAdapter,
+        clear_surface: Callable[[Surface, Optional[RectLike]], None],
+    ):
+        """
+        data: PyscrollDataAdapter
+        clear_surface: function(surface, area) -> None
+        """
+        self.data = data
+        self.clear_surface = clear_surface
+
+    def queue_edge_tiles(
+        self, tile_view: Rect, dx: int, dy: int, buffer_surface: Surface
+    ) -> list[tuple[int, int, int, Surface]]:
+        """
+        Returns a list of (x, y, layer, image) tuples.
+        Also clears the buffer regions where new tiles will be drawn.
         """
         tw, th = self.data.tile_size
-        ltw = self._tile_view.left * tw
-        tth = self._tile_view.top * th
+        v = tile_view
+        queue: list[tuple[int, int, int, Surface]] = []
 
-        self.data.prepare_tiles(self._tile_view)
+        def append(rect: RectLike) -> None:
+            # rect = (x, y, w, h) in tile coords
+            queue.extend(self.data.get_tile_images_by_rect(rect))
 
-        surface.blits(
+            if buffer_surface is None:
+                return
+
+            # Convert tile rect → pixel rect
+            px = (rect[0] - v.left) * tw
+            py = (rect[1] - v.top) * th
+            pw = rect[2] * tw
+            ph = rect[3] * th
+
+            self.clear_surface(buffer_surface, (px, py, pw, ph))
+
+        # Horizontal movement
+        if dx > 0:
+            append((v.right - 1, v.top, dx, v.height))
+        elif dx < 0:
+            append((v.left, v.top, -dx, v.height))
+
+        # Vertical movement
+        if dy > 0:
+            append((v.left, v.bottom - 1, v.width, dy))
+        elif dy < 0:
+            append((v.left, v.top, v.width, -dy))
+
+        return queue
+
+    def flush_tile_queue(
+        self,
+        tile_queue: Iterable[tuple[int, int, int, Surface]],
+        tile_view: Rect,
+        buffer_surface: Surface,
+    ) -> None:
+        """
+        Draws all tiles in the queue onto the buffer surface.
+        """
+        tw, th = self.data.tile_size
+        ltw = tile_view.left * tw
+        tth = tile_view.top * th
+
+        self.data.prepare_tiles(tile_view)
+
+        buffer_surface.blits(
             (
                 (image, (x * tw - ltw, y * th - tth))
-                for x, y, l, image in self._tile_queue
+                for x, y, layer, image in tile_queue
             ),
             doreturn=False,
         )
+
+    def redraw_all(self, tile_view: Rect, buffer_surface: Surface) -> None:
+        """
+        Full redraw of all tiles in the tile_view.
+        """
+        tile_queue = self.data.get_tile_images_by_rect(tile_view)
+        self.flush_tile_queue(tile_queue, tile_view, buffer_surface)
+
+
+from typing import Protocol
+
+
+class SpriteRendererProtocol(Protocol):
+    def render_sprites(
+        self,
+        surface: Surface,
+        offset: tuple[int, int],
+        tile_view: Rect,
+        surfaces: list[Renderable],
+    ) -> None: ...
+
+
+class SpriteRenderer(SpriteRendererProtocol):
+    def __init__(
+        self,
+        data: PyscrollDataAdapter,
+        layer_quadtree: FastQuadTree,
+        tall_sprites: int = 0,
+    ):
+        """
+        data: PyscrollDataAdapter
+        layer_quadtree: FastQuadTree for tile hit detection
+        tall_sprites: height of tall sprite damage region
+        """
+        self.data = data
+        self.layer_quadtree = layer_quadtree
+        self.tall_sprites = tall_sprites
+
+    def render_sprites(
+        self,
+        surface: Surface,
+        offset: tuple[int, int],
+        tile_view: Rect,
+        surfaces: list[Renderable],
+    ) -> None:
+        """
+        surfaces: list[Renderable]
+        offset: (ox, oy) pixel offset for drawing
+        """
+        ox, oy = offset
+        left, top = tile_view.topleft
+        tile_layers = tuple(sorted(self.data.visible_tile_layers))
+        top_layer = tile_layers[-1]
+
+        blit_list = []
+        sprite_damage = set()
+        order = 0
+
+        for renderable in surfaces:
+            # Damage rect for tile redraw
+            if renderable.layer <= top_layer:
+                damage_rect = Rect(renderable.rect)
+                damage_rect.move_ip(ox, oy)
+
+                if self.tall_sprites:
+                    damage_rect = Rect(
+                        damage_rect.x,
+                        damage_rect.y + (damage_rect.height - self.tall_sprites),
+                        damage_rect.width,
+                        self.tall_sprites,
+                    )
+
+                if self.layer_quadtree is not None:
+                    for hit_rect in self.layer_quadtree.hit(damage_rect):
+                        sprite_damage.add((renderable.layer, hit_rect))
+
+            # Add sprite to blit list
+            x, y, w, h = renderable.rect
+            blit_list.append(
+                (
+                    renderable.layer,
+                    1,  # priority: sprites after tiles
+                    x,
+                    y,
+                    order,
+                    renderable.surface,
+                    renderable.blendmode,
+                )
+            )
+            order += 1
+
+        column = []
+        for dl, d_rect in sprite_damage:
+            x, y, w, h = d_rect
+            tx = x // w + left
+            ty = y // h + top
+            is_over = False
+
+            for layer in tile_layers:
+                tile = self.data.get_tile_image(tx, ty, layer)
+                if tile:
+                    sx = x - ox
+                    sy = y - oy
+                    if dl <= layer:
+                        is_over = True
+                    column.append((layer, 0, sx, sy, order, tile, None))
+                    order += 1
+
+            if is_over:
+                blit_list.extend(column)
+            column.clear()
+
+        blit_list.sort()
+
+        draw_list: list[Blit2 | Blit3] = []
+        for layer, priority, x, y, order, surf, blend in blit_list:
+            if surf is None:
+                continue
+            if blend is None:
+                draw_list.append((surf, (x, y)))
+            else:
+                draw_list.append((surf, (x, y), int(blend)))
+
+        surface.blits(draw_list, doreturn=False)

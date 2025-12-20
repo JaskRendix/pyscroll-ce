@@ -3,7 +3,7 @@ import pytest
 from pygame import Rect, Surface
 
 from pyscroll.data import PyscrollDataAdapter
-from pyscroll.isometric import IsometricBufferedRenderer
+from pyscroll.isometric import IsometricBufferedRenderer, IsometricSpriteRenderer
 
 
 class DummyAdapter(PyscrollDataAdapter):
@@ -65,16 +65,7 @@ def test_redraw_tiles(renderer):
     assert px != (0, 0, 0, 255)
 
 
-def test_flush_tile_queue(renderer):
-    renderer._tile_queue = [
-        (0, 0, 0, renderer.data._tile),  # 4-tuple
-        (1, 1, 0, renderer.data._tile, 0),  # 5-tuple
-    ]
-    renderer._flush_tile_queue(renderer._buffer)
-    assert True
-
-
-def test_draw_surfaces(renderer):
+def test_sprite_renderer_draws_sprite(renderer):
     surf = Surface((320, 240))
     sprite = Surface((32, 32))
     sprite.fill((0, 255, 0))
@@ -85,12 +76,19 @@ def test_draw_surfaces(renderer):
         blendmode = None
         layer = 0
 
-    renderer._draw_surfaces(surf, (0, 0), [DummyRenderable()])
+    iso_renderer = IsometricSpriteRenderer()
+    iso_renderer.render_sprites(
+        surf,
+        offset=(0, 0),
+        tile_view=renderer._tile_view,
+        surfaces=[DummyRenderable()],
+    )
+
     px = surf.get_at((50, 50))
     assert px == (0, 255, 0, 255)
 
 
-def test_center(renderer):
+def test_center_updates_offsets(renderer):
     renderer.center((160, 120))
     assert isinstance(renderer._x_offset, int)
     assert isinstance(renderer._y_offset, int)
