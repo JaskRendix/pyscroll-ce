@@ -57,7 +57,7 @@ class IsometricBufferedRenderer(BufferedRenderer):
             viewport=viewport,
         )
 
-        self.tile_renderer = IsometricTileRenderer(data, self._clear_color)
+        self.tile_renderer = IsometricTileRenderer(data, colorkey, alpha)
         self.sprite_renderer = IsometricSpriteRenderer()
 
         self._last_offset: Optional[tuple[int, int]] = None

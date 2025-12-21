@@ -23,6 +23,9 @@ class TileRendererProtocol(Protocol):
     Protocol for any object responsible for drawing map tiles onto a buffer.
     """
 
+    @property
+    def clear_color(self) -> Optional[ColorRGB | ColorRGBA]: ...
+
     def queue_edge_tiles(
         self,
         tile_view: Rect,
@@ -53,12 +56,29 @@ class TileRenderer(TileRendererProtocol):
     def __init__(
         self,
         data: PyscrollDataAdapter,
-        clear_color: Optional[ColorRGB | ColorRGBA],
+        colorkey: Optional[ColorRGB] = None,
+        alpha: bool = False,
     ):
         self.data = data
-        self._clear_color = clear_color
+
+        self._clear_color: Optional[ColorRGB | ColorRGBA]
+
+        if colorkey and alpha:
+            raise ValueError("cannot select both colorkey and alpha")
+
+        if colorkey:
+            self._clear_color = colorkey
+        elif alpha:
+            self._clear_color = (0, 0, 0, 0)
+        else:
+            self._clear_color = None
+
         self._rgba_clear_color: ColorRGBA = (0, 0, 0, 0)
         self._rgb_clear_color: ColorRGB = (0, 0, 0)
+
+    @property
+    def clear_color(self) -> Optional[ColorRGB | ColorRGBA]:
+        return self._clear_color
 
     def queue_edge_tiles(
         self, tile_view: Rect, dx: int, dy: int, buffer_surface: Surface
@@ -161,10 +181,26 @@ class IsometricTileRenderer(TileRendererProtocol):
     def __init__(
         self,
         data: PyscrollDataAdapter,
-        clear_color: Optional[ColorRGB | ColorRGBA],
+        colorkey: Optional[ColorRGB] = None,
+        alpha: bool = False,
     ):
         self.data = data
-        self._clear_color = clear_color
+
+        self._clear_color: Optional[ColorRGB | ColorRGBA]
+
+        if colorkey and alpha:
+            raise ValueError("cannot select both colorkey and alpha")
+
+        if colorkey:
+            self._clear_color = colorkey
+        elif alpha:
+            self._clear_color = (0, 0, 0, 0)
+        else:
+            self._clear_color = None
+
+    @property
+    def clear_color(self) -> Optional[ColorRGB | ColorRGBA]:
+        return self._clear_color
 
     def queue_edge_tiles(
         self, tile_view: Rect, dx: int, dy: int, buffer_surface: Surface

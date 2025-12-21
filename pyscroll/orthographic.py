@@ -121,19 +121,8 @@ class BufferedRenderer:
         tile_view = self.viewport.tile_view
         self._last_tile_view_size: tuple[int, int] = tile_view.size
 
-        self._clear_color: Optional[ColorRGB | ColorRGBA]
-        if colorkey and alpha:
-            log.error("cannot select both colorkey and alpha")
-            raise ValueError
-        elif colorkey:
-            self._clear_color = colorkey
-        elif alpha:
-            self._clear_color = self._rgba_clear_color
-        else:
-            self._clear_color = None
-
         self.tile_renderer: TileRendererProtocol = TileRenderer(
-            self.data, self._clear_color
+            self.data, colorkey, alpha
         )
 
         self._buffer: Optional[Surface] = None
@@ -316,7 +305,7 @@ class BufferedRenderer:
     def _create_buffers(
         self, view_size: tuple[int, int], buffer_size: tuple[int, int]
     ) -> None:
-        clear_color = self._clear_color
+        clear_color = self.tile_renderer.clear_color
 
         # Reset zoom buffer
         self._zoom_buffer = None
