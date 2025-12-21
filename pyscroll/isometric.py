@@ -67,7 +67,7 @@ class IsometricBufferedRenderer(BufferedRenderer):
         if self._clear_color is not None:
             surface.fill(self._clear_color)
 
-        v = self.viewport._tile_view
+        v = self.viewport.tile_view
         tw, th = self.data.tile_size
 
         twh = tw // 2
@@ -104,12 +104,12 @@ class IsometricBufferedRenderer(BufferedRenderer):
         if self._buffer is None:
             return
 
-        if self.viewport._anchored_view:
+        if self.viewport.anchored_view:
             self._clear_surface(surface, self._previous_blit)
 
         offset = (
-            -self.viewport._x_offset + rect.left,
-            -self.viewport._y_offset + rect.top,
+            -self.viewport.x_offset + rect.left,
+            -self.viewport.y_offset + rect.top,
         )
 
         with surface_clipping_context(surface, rect):
@@ -119,7 +119,7 @@ class IsometricBufferedRenderer(BufferedRenderer):
                 self.sprite_renderer.render_sprites(
                     surface,
                     surfaces_offset,
-                    self.viewport._tile_view,
+                    self.viewport.tile_view,
                     surfaces,
                 )
 

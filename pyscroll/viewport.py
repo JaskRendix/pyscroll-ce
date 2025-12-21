@@ -35,6 +35,22 @@ class ViewportBase(ABC):
     _anchored_view: bool
 
     @property
+    def tile_view(self) -> Rect:
+        return self._tile_view
+
+    @property
+    def x_offset(self) -> int:
+        return self._x_offset
+
+    @property
+    def y_offset(self) -> int:
+        return self._y_offset
+
+    @property
+    def anchored_view(self) -> bool:
+        return self._anchored_view
+
+    @property
     @abstractmethod
     def zoom(self) -> float: ...
 

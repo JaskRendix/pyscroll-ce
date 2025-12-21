@@ -152,15 +152,15 @@ class BufferedRenderer:
 
     @property
     def _tile_view(self) -> Rect:
-        return self.viewport._tile_view
+        return self.viewport.tile_view
 
     @property
     def _x_offset(self) -> int:
-        return self.viewport._x_offset
+        return self.viewport.x_offset
 
     @property
     def _y_offset(self) -> int:
-        return self.viewport._y_offset
+        return self.viewport.y_offset
 
     def scroll(self, vector: tuple[int, int]) -> None:
         """Delegate to viewport, then update surfaces if needed."""
@@ -232,9 +232,9 @@ class BufferedRenderer:
             return
         log.debug("pyscroll buffer redraw")
         self.tile_renderer.clear_region(self._buffer)
-        tile_queue = self.data.get_tile_images_by_rect(self.viewport._tile_view)
+        tile_queue = self.data.get_tile_images_by_rect(self.viewport.tile_view)
         self.tile_renderer.flush_tile_queue(
-            tile_queue, self.viewport._tile_view, self._buffer
+            tile_queue, self.viewport.tile_view, self._buffer
         )
 
     def _handle_view_change(self, dx: int, dy: int, view_change: int) -> None:
@@ -247,17 +247,17 @@ class BufferedRenderer:
         if view_change <= self._redraw_cutoff:
             # Scroll the buffer surface
             self._buffer.scroll(-dx * tw, -dy * th)
-            self.viewport._tile_view.move_ip(dx, dy)
+            self.viewport.tile_view.move_ip(dx, dy)
             tile_queue = self.tile_renderer.queue_edge_tiles(
-                self.viewport._tile_view, dx, dy, self._buffer
+                self.viewport.tile_view, dx, dy, self._buffer
             )
             self.tile_renderer.flush_tile_queue(
-                tile_queue, self.viewport._tile_view, self._buffer
+                tile_queue, self.viewport.tile_view, self._buffer
             )
         else:
             # Redraw the entire buffer
             log.debug("scrolling too quickly. redraw forced")
-            self.viewport._tile_view.move_ip(dx, dy)
+            self.viewport.tile_view.move_ip(dx, dy)
             self.redraw_tiles(self._buffer)
 
     def _render_map(
@@ -267,18 +267,18 @@ class BufferedRenderer:
         if self._buffer is None:
             return
 
-        tile_queue = self.data.process_animation_queue(self.viewport._tile_view)
+        tile_queue = self.data.process_animation_queue(self.viewport.tile_view)
         self.tile_renderer.flush_tile_queue(
-            tile_queue, self.viewport._tile_view, self._buffer
+            tile_queue, self.viewport.tile_view, self._buffer
         )
 
         # Clear space outside the map area if view is unanchored
-        if not self.viewport._anchored_view:
+        if not self.viewport.anchored_view:
             self.tile_renderer.clear_region(surface, self._previous_blit)
 
         offset = (
-            -self.viewport._x_offset + rect.left,
-            -self.viewport._y_offset + rect.top,
+            -self.viewport.x_offset + rect.left,
+            -self.viewport.y_offset + rect.top,
         )
 
         with surface_clipping_context(surface, rect):
@@ -286,7 +286,7 @@ class BufferedRenderer:
             if surfaces:
                 surfaces_offset = -offset[0], -offset[1]
                 self.sprite_renderer.render_sprites(
-                    surface, surfaces_offset, self.viewport._tile_view, surfaces
+                    surface, surfaces_offset, self.viewport.tile_view, surfaces
                 )
 
     def _create_buffers(
@@ -325,10 +325,10 @@ class BufferedRenderer:
         This runs after init, set_size, or zoom change.
         """
         buffer_pixel_size = self.viewport.map_rect.size
-        if self.viewport._tile_view.size != (0, 0):
+        if self.viewport.tile_view.size != (0, 0):
             buffer_pixel_size = (
-                self.viewport._tile_view.width * self.data.tile_size[0],
-                self.viewport._tile_view.height * self.data.tile_size[1],
+                self.viewport.tile_view.width * self.data.tile_size[0],
+                self.viewport.tile_view.height * self.data.tile_size[1],
             )
 
         self._create_buffers(self.viewport.view_rect.size, buffer_pixel_size)
@@ -336,8 +336,8 @@ class BufferedRenderer:
         tw, th = self.data.tile_size
         rects = [
             Rect((x * tw, y * th), (tw, th))
-            for y in range(self.viewport._tile_view.height)
-            for x in range(self.viewport._tile_view.width)
+            for y in range(self.viewport.tile_view.height)
+            for x in range(self.viewport.tile_view.width)
         ]
 
         layer_quadtree = FastQuadTree(items=rects, depth=4)
