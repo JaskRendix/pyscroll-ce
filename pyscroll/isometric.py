@@ -60,8 +60,8 @@ class IsometricBufferedRenderer(BufferedRenderer):
         self.tile_renderer = IsometricTileRenderer(data, self._clear_color)
         self.sprite_renderer = IsometricSpriteRenderer()
 
-        self._last_offset = None
-        self._redraw_cutoff = 0
+        self._last_offset: Optional[tuple[int, int]] = None
+        self._redraw_cutoff: int = 0
 
     def redraw_tiles(self, surface: Surface) -> None:
         """Redraw the entire visible portion of the isometric tile buffer."""

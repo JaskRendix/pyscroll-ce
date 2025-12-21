@@ -116,9 +116,11 @@ class BufferedRenderer:
             self.viewport = viewport
 
         self._previous_blit = Rect(0, 0, 0, 0)
-        self._redraw_cutoff: int = 1  # Keep this simple for now
+        self._redraw_cutoff: int = 1
 
-        # Handle color/alpha options
+        tile_view = self.viewport.tile_view
+        self._last_tile_view_size: tuple[int, int] = tile_view.size
+
         self._clear_color: Optional[ColorRGB | ColorRGBA]
         if colorkey and alpha:
             log.error("cannot select both colorkey and alpha")
@@ -163,187 +165,230 @@ class BufferedRenderer:
         return self.viewport.y_offset
 
     def scroll(self, vector: tuple[int, int]) -> None:
-        """Delegate to viewport, then update surfaces if needed."""
-        _, _, dx, dy, view_change = self.viewport.scroll(vector)
+        viewport = self.viewport
+        _, _, dx, dy, view_change = viewport.scroll(vector)
         self._handle_view_change(dx, dy, view_change)
 
     def center(self, coords: Vector2D) -> None:
-        """Delegate to viewport, then update surfaces if needed."""
-        _, _, dx, dy, view_change = self.viewport.center(coords)
+        viewport = self.viewport
+        _, _, dx, dy, view_change = viewport.center(coords)
         self._handle_view_change(dx, dy, view_change)
 
     @property
     def zoom(self) -> float:
-        """Delegate to viewport."""
         return self.viewport.zoom
 
     @zoom.setter
     def zoom(self, value: float) -> None:
-        """Delegate to viewport and re-initialize all buffers."""
         self.viewport.zoom = value
         self._initialize_buffers_from_viewport()
 
     def set_size(self, size: tuple[int, int]) -> None:
-        """Delegate to viewport and re-initialize all buffers."""
         self.viewport.set_size(size)
         self._initialize_buffers_from_viewport()
 
     def get_center_offset(self) -> tuple[int, int]:
-        """Delegate to viewport."""
         return self.viewport.get_center_offset()
 
     def translate_point(self, point: Vector2D) -> tuple[int, int]:
-        """Delegate to viewport."""
         return self.viewport.translate_point(point)
 
     def translate_rect(self, rect: RectLike) -> Rect:
-        """Delegate to viewport."""
         return self.viewport.translate_rect(rect)
 
     def translate_points(self, points: list[Vector2D]) -> list[tuple[int, int]]:
-        """Delegate to viewport."""
         return self.viewport.translate_points(points)
 
     def translate_rects(self, rects: list[Rect]) -> list[Rect]:
-        """Delegate to viewport."""
         return self.viewport.translate_rects(rects)
 
     def reload(self) -> None:
-        """Reload tiles and animations for the data source."""
-        if self._buffer is None:
+        buffer = self._buffer
+        if buffer is None:
             return
-        self.data.reload_data()
-        self.data.reload_animations()
-        self.redraw_tiles(self._buffer)
+
+        data = self.data
+        data.reload_data()
+        data.reload_animations()
+        self.redraw_tiles(buffer)
 
     def draw(self, surface: Surface, rect: Rect, surfaces: list[Renderable]) -> Rect:
-        """Draw map and sprites onto the destination surface."""
-        if self.viewport.zoom == 1.0:
+        viewport = self.viewport
+        zoom = viewport.zoom
+
+        if zoom == 1.0:
             self._render_map(surface, rect, surfaces)
         else:
-            assert self._zoom_buffer
-            self._render_map(self._zoom_buffer, self._zoom_buffer.get_rect(), surfaces)
-            self.scaling_function(self._zoom_buffer, rect.size, surface)
+            zoom_buffer = self._zoom_buffer
+            assert zoom_buffer is not None
+            self._render_map(zoom_buffer, zoom_buffer.get_rect(), surfaces)
+            self.scaling_function(zoom_buffer, rect.size, surface)
+
+        # Preserve backward compatibility: return a copy
         return self._previous_blit.copy()
 
     def redraw_tiles(self, surface: Surface) -> None:
-        """Redraw the visible portion of the buffer."""
-        if self._buffer is None:
+        buffer = self._buffer
+        if buffer is None:
             return
+
         log.debug("pyscroll buffer redraw")
-        self.tile_renderer.clear_region(self._buffer)
-        tile_queue = self.data.get_tile_images_by_rect(self.viewport.tile_view)
-        self.tile_renderer.flush_tile_queue(
-            tile_queue, self.viewport.tile_view, self._buffer
-        )
+
+        tile_renderer = self.tile_renderer
+        viewport = self.viewport
+        data = self.data
+
+        tile_view = viewport.tile_view
+        tile_queue = data.get_tile_images_by_rect(tile_view)
+
+        tile_renderer.clear_region(buffer)
+        tile_renderer.flush_tile_queue(tile_queue, tile_view, buffer)
 
     def _handle_view_change(self, dx: int, dy: int, view_change: int) -> None:
-        """Internal logic to update the buffer when the ViewPort moves."""
-        if self._buffer is None or view_change == 0:
+        buffer = self._buffer
+        if buffer is None or view_change == 0:
             return
 
-        tw, th = self.data.tile_size
+        data = self.data
+        tile_renderer = self.tile_renderer
+        viewport = self.viewport
+        tile_view = viewport.tile_view
+        tw, th = data.tile_size
 
         if view_change <= self._redraw_cutoff:
-            # Scroll the buffer surface
-            self._buffer.scroll(-dx * tw, -dy * th)
-            self.viewport.tile_view.move_ip(dx, dy)
-            tile_queue = self.tile_renderer.queue_edge_tiles(
-                self.viewport.tile_view, dx, dy, self._buffer
-            )
-            self.tile_renderer.flush_tile_queue(
-                tile_queue, self.viewport.tile_view, self._buffer
-            )
+            # Small scroll – use buffer scroll
+            buffer.scroll(-dx * tw, -dy * th)
+            tile_view.move_ip(dx, dy)
+
+            queue_edge_tiles = tile_renderer.queue_edge_tiles
+            flush = tile_renderer.flush_tile_queue
+
+            tile_queue = queue_edge_tiles(tile_view, dx, dy, buffer)
+            flush(tile_queue, tile_view, buffer)
         else:
-            # Redraw the entire buffer
+            # Large scroll – full redraw
             log.debug("scrolling too quickly. redraw forced")
-            self.viewport.tile_view.move_ip(dx, dy)
-            self.redraw_tiles(self._buffer)
+            tile_view.move_ip(dx, dy)
+            self.redraw_tiles(buffer)
 
     def _render_map(
         self, surface: Surface, rect: Rect, surfaces: list[Renderable]
     ) -> None:
-        """Render the tilemap and interleave sprites."""
-        if self._buffer is None:
+        buffer = self._buffer
+        if buffer is None:
             return
 
-        tile_queue = self.data.process_animation_queue(self.viewport.tile_view)
-        self.tile_renderer.flush_tile_queue(
-            tile_queue, self.viewport.tile_view, self._buffer
-        )
+        data = self.data
+        tile_renderer = self.tile_renderer
+        viewport = self.viewport
 
-        # Clear space outside the map area if view is unanchored
-        if not self.viewport.anchored_view:
-            self.tile_renderer.clear_region(surface, self._previous_blit)
+        tile_view = viewport.tile_view
 
-        offset = (
-            -self.viewport.x_offset + rect.left,
-            -self.viewport.y_offset + rect.top,
-        )
+        # Process tile animations
+        tile_queue = data.process_animation_queue(tile_view)
+        tile_renderer.flush_tile_queue(tile_queue, tile_view, buffer)
+
+        anchored_view = viewport.anchored_view
+        if not anchored_view:
+            # Clear the previous blit region on the target surface
+            tile_renderer.clear_region(surface, self._previous_blit)
+
+        # Compute offsets once
+        vx = viewport.x_offset
+        vy = viewport.y_offset
+        rect_left = rect.left
+        rect_top = rect.top
+
+        ox = -vx + rect_left
+        oy = -vy + rect_top
+        offset = (ox, oy)
 
         with surface_clipping_context(surface, rect):
-            self._previous_blit = surface.blit(self._buffer, offset)
+            self._previous_blit = surface.blit(buffer, offset)
+
             if surfaces:
-                surfaces_offset = -offset[0], -offset[1]
+                # sprites_offset is inverse of map offset
+                surfaces_offset = (-ox, -oy)
                 self.sprite_renderer.render_sprites(
-                    surface, surfaces_offset, self.viewport.tile_view, surfaces
+                    surface, surfaces_offset, tile_view, surfaces
                 )
 
     def _create_buffers(
         self, view_size: tuple[int, int], buffer_size: tuple[int, int]
     ) -> None:
-        """Create the Pygame Surface buffers based on viewport size."""
-        requires_zoom = view_size != buffer_size
+        clear_color = self._clear_color
+
+        # Reset zoom buffer
         self._zoom_buffer = None
 
-        if self._clear_color is None:
+        # Determine flags and fill behavior
+        if clear_color is None:
             flags = 0
             fill_color = None
-        elif self._clear_color == self._rgba_clear_color:
+        elif clear_color == self._rgba_clear_color:
             flags = pygame.SRCALPHA
             fill_color = None
         else:
             flags = pygame.RLEACCEL
-            fill_color = self._clear_color
+            fill_color = clear_color
+
+        requires_zoom = view_size != buffer_size
 
         if requires_zoom:
-            self._zoom_buffer = Surface(view_size, flags=flags)
+            zoom_buffer = Surface(view_size, flags=flags)
             if fill_color is not None:
-                self._zoom_buffer.set_colorkey(fill_color)
+                zoom_buffer.set_colorkey(fill_color)
+            self._zoom_buffer = zoom_buffer
 
-        self._buffer = Surface(buffer_size, flags=flags)
+        buffer = Surface(buffer_size, flags=flags)
         if fill_color is not None:
-            self._buffer.set_colorkey(fill_color)
-            self._buffer.fill(fill_color)
+            buffer.set_colorkey(fill_color)
+            buffer.fill(fill_color)
 
-        if self._clear_color == self._rgba_clear_color:
-            self.data.convert_surfaces(self._buffer, True)
+        self._buffer = buffer
+
+        # Convert surfaces only for alpha clear color (unchanged behavior)
+        if clear_color == self._rgba_clear_color:
+            self.data.convert_surfaces(buffer, True)
 
     def _initialize_buffers_from_viewport(self) -> None:
-        """
-        Setup the surfaces and supporting structures based on ViewPort state.
-        This runs after init, set_size, or zoom change.
-        """
-        buffer_pixel_size = self.viewport.map_rect.size
-        if self.viewport.tile_view.size != (0, 0):
+        viewport = self.viewport
+        data = self.data
+
+        view_rect = viewport.view_rect
+        tile_view = viewport.tile_view
+        tile_view_size = tile_view.size
+
+        # Base buffer pixel size on map_rect, but override if tile_view is non-empty
+        buffer_pixel_size = viewport.map_rect.size
+        if tile_view_size != (0, 0):
+            tw, th = data.tile_size
             buffer_pixel_size = (
-                self.viewport.tile_view.width * self.data.tile_size[0],
-                self.viewport.tile_view.height * self.data.tile_size[1],
+                tile_view.width * tw,
+                tile_view.height * th,
             )
 
-        self._create_buffers(self.viewport.view_rect.size, buffer_pixel_size)
+        self._create_buffers(view_rect.size, buffer_pixel_size)
 
-        tw, th = self.data.tile_size
-        rects = [
-            Rect((x * tw, y * th), (tw, th))
-            for y in range(self.viewport.tile_view.height)
-            for x in range(self.viewport.tile_view.width)
-        ]
+        # Only rebuild quadtree when tile_view dimensions change
+        if tile_view_size != self._last_tile_view_size:
+            self._last_tile_view_size = tile_view_size
 
-        layer_quadtree = FastQuadTree(items=rects, depth=4)
-        self.sprite_renderer: SpriteRendererProtocol = SpriteRenderer(
-            self.data, layer_quadtree, self.tall_sprites
-        )
+            tw, th = data.tile_size
+            width, height = tile_view_size
 
-        if self._buffer:
-            self.redraw_tiles(self._buffer)
+            rects = [
+                Rect((x * tw, y * th), (tw, th))
+                for y in range(height)
+                for x in range(width)
+            ]
+
+            layer_quadtree = FastQuadTree(items=rects, depth=4)
+            self.sprite_renderer: SpriteRendererProtocol = SpriteRenderer(
+                data, layer_quadtree, self.tall_sprites
+            )
+
+        # Redraw tiles if buffer exists
+        buffer = self._buffer
+        if buffer is not None:
+            self.redraw_tiles(buffer)
