@@ -39,7 +39,8 @@ class IsometricBufferedRenderer(BufferedRenderer):
         sprite_damage_height: int = 0,
         zoom: float = 1.0,
     ) -> None:
-        self.viewport = IsometricViewport(data, size, zoom, clamp_camera)
+
+        viewport = IsometricViewport(data, size, zoom, clamp_camera)
 
         super().__init__(
             data=data,
@@ -52,10 +53,11 @@ class IsometricBufferedRenderer(BufferedRenderer):
             tall_sprites=tall_sprites,
             sprite_damage_height=sprite_damage_height,
             zoom=zoom,
+            viewport=viewport,
         )
 
         self.sprite_renderer = IsometricSpriteRenderer()
-        self._redraw_cutoff = 0  # always full redraw for isometric
+        self._redraw_cutoff = 0
 
     def redraw_tiles(self, surface: Surface) -> None:
         """Redraw the entire visible portion of the isometric tile buffer."""

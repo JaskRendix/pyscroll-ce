@@ -58,6 +58,7 @@ class BufferedRenderer:
         tall_sprites: int = 0,
         sprite_damage_height: int = 0,
         zoom: float = 1.0,
+        viewport: Optional[ViewportBase] = None,
     ) -> None:
         """
         Constructor
@@ -84,7 +85,11 @@ class BufferedRenderer:
         self.tall_sprites = tall_sprites
         self.sprite_damage_height = sprite_damage_height
 
-        self.viewport: ViewportBase = ViewPort(data, size, zoom, clamp_camera)
+        self.viewport: ViewportBase
+        if viewport is None:
+            self.viewport = ViewPort(data, size, zoom, clamp_camera)
+        else:
+            self.viewport = viewport
 
         self._previous_blit = Rect(0, 0, 0, 0)
         self._redraw_cutoff: int = 1  # Keep this simple for now
@@ -122,15 +127,15 @@ class BufferedRenderer:
         return self.viewport.map_rect
 
     @property
-    def _tile_view(self):
+    def _tile_view(self) -> Rect:
         return self.viewport._tile_view
 
     @property
-    def _x_offset(self):
+    def _x_offset(self) -> int:
         return self.viewport._x_offset
 
     @property
-    def _y_offset(self):
+    def _y_offset(self) -> int:
         return self.viewport._y_offset
 
     def scroll(self, vector: tuple[int, int]) -> None:
