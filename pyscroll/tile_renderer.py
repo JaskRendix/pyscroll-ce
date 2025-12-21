@@ -43,6 +43,9 @@ class TileRendererProtocol(Protocol):
         tile_view: Rect,
         buffer_surface: Surface,
     ) -> None: ...
+    def clear_region(
+        self, surface: Surface, area: Optional[RectLike] = None
+    ) -> None: ...
 
 
 class TileRenderer(TileRendererProtocol):
@@ -85,7 +88,7 @@ class TileRenderer(TileRendererProtocol):
             pw = rect[2] * tw
             ph = rect[3] * th
 
-            self._perform_surface_clear(buffer_surface, (px, py, pw, ph))
+            self.clear_region(buffer_surface, (px, py, pw, ph))
 
         # Horizontal movement
         if dx > 0:
@@ -131,9 +134,7 @@ class TileRenderer(TileRendererProtocol):
         tile_queue = self.data.get_tile_images_by_rect(tile_view)
         self.flush_tile_queue(tile_queue, tile_view, buffer_surface)
 
-    def _perform_surface_clear(
-        self, surface: Surface, area: Optional[RectLike] = None
-    ) -> None:
+    def clear_region(self, surface: Surface, area: Optional[RectLike] = None) -> None:
         """Clear the surface using the appropriate clear color."""
         if self._clear_color is not None:
             clear_color = self._clear_color

@@ -13,7 +13,7 @@ from pygame.surface import Surface
 from pyscroll.common import RectLike, Vector2D, surface_clipping_context
 from pyscroll.quadtree import FastQuadTree
 from pyscroll.sprite_manager import SpriteRenderer, SpriteRendererProtocol
-from pyscroll.tile_renderer import TileRenderer
+from pyscroll.tile_renderer import TileRenderer, TileRendererProtocol
 
 if TYPE_CHECKING:
     from pyscroll.data import PyscrollDataAdapter
@@ -99,7 +99,9 @@ class BufferedRenderer:
             self._clear_color = self._rgba_clear_color
         else:
             self._clear_color = None
-        self.tile_renderer = TileRenderer(self.data, self._clear_color)
+        self.tile_renderer: TileRendererProtocol = TileRenderer(
+            self.data, self._clear_color
+        )
 
         # private attributes
         # if true, map is fixed to upper left corner
@@ -326,7 +328,7 @@ class BufferedRenderer:
             return
         # TODO/BUG: Animated tiles are getting reset here
         log.debug("pyscroll buffer redraw")
-        self.tile_renderer._perform_surface_clear(self._buffer)
+        self.tile_renderer.clear_region(self._buffer)
         tile_queue = self.data.get_tile_images_by_rect(self._tile_view)
         self.tile_renderer.flush_tile_queue(tile_queue, self._tile_view, self._buffer)
 
@@ -439,7 +441,7 @@ class BufferedRenderer:
 
         # TODO: could maybe optimize to remove just the edges, ideally by drawing lines
         if not self._anchored_view:
-            self.tile_renderer._perform_surface_clear(surface, self._previous_blit)
+            self.tile_renderer.clear_region(surface, self._previous_blit)
 
         offset = -self._x_offset + rect.left, -self._y_offset + rect.top
 
