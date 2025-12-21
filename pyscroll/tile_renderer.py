@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Protocol
 
 from pygame.rect import Rect
 from pygame.surface import Surface
@@ -18,7 +18,34 @@ ColorRGB = tuple[int, int, int]
 ColorRGBA = tuple[int, int, int, int]
 
 
-class TileRenderer:
+class TileRendererProtocol(Protocol):
+    """
+    Protocol for any object responsible for drawing map tiles onto a buffer.
+    """
+
+    def queue_edge_tiles(
+        self,
+        tile_view: Rect,
+        dx: int,
+        dy: int,
+        buffer_surface: Surface,
+    ) -> list[tuple[int, int, int, Surface]]: ...
+
+    def flush_tile_queue(
+        self,
+        tile_queue: Iterable[tuple[int, int, int, Surface]],
+        tile_view: Rect,
+        buffer_surface: Surface,
+    ) -> None: ...
+
+    def redraw_all(
+        self,
+        tile_view: Rect,
+        buffer_surface: Surface,
+    ) -> None: ...
+
+
+class TileRenderer(TileRendererProtocol):
     def __init__(
         self,
         data: PyscrollDataAdapter,
