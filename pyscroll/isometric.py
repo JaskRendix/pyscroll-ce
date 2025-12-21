@@ -56,13 +56,17 @@ class IsometricBufferedRenderer(BufferedRenderer):
             zoom=zoom,
             viewport=viewport,
         )
+
         self.tile_renderer = IsometricTileRenderer(data, self._clear_color)
         self.sprite_renderer = IsometricSpriteRenderer()
+
+        self._last_offset = None
         self._redraw_cutoff = 0
 
     def redraw_tiles(self, surface: Surface) -> None:
         """Redraw the entire visible portion of the isometric tile buffer."""
-        self.tile_renderer.redraw_all(self.viewport.tile_view, surface)
+        tile_view = self.viewport.tile_view
+        self.tile_renderer.redraw_all(tile_view, surface)
 
     def _render_map(
         self, surface: Surface, rect: Rect, surfaces: list[Renderable]
@@ -71,21 +75,43 @@ class IsometricBufferedRenderer(BufferedRenderer):
         if self._buffer is None:
             return
 
-        if self.viewport.anchored_view:
-            self.tile_renderer.clear_region(surface, self._previous_blit)
+        viewport = self.viewport
+        tile_renderer = self.tile_renderer
+        sprite_renderer = self.sprite_renderer
+        tile_view = viewport.tile_view
 
-        offset = (
-            -self.viewport.x_offset + rect.left,
-            -self.viewport.y_offset + rect.top,
-        )
+        # Compute offsets once
+        vx = viewport.x_offset
+        vy = viewport.y_offset
+        ox = -vx + rect.left
+        oy = -vy + rect.top
+        offset = (ox, oy)
+
+        # Only clear region if offset changed
+        if viewport.anchored_view:
+            current_offset = (vx, vy)
+            if current_offset != self._last_offset:
+                if self._previous_blit:
+                    tile_renderer.clear_region(surface, self._previous_blit)
+                self._last_offset = current_offset
+
+        # Blit buffer BEFORE clipping context (faster)
+        self._previous_blit = surface.blit(self._buffer, offset)
+
+        # Clip only for sprite rendering
+        if not surfaces:
+            return
+
+        # Skip sprite rendering if none intersect viewport
+        if not any(s.rect.colliderect(rect) for s in surfaces):
+            return
+
+        surfaces_offset = (-ox, -oy)
 
         with surface_clipping_context(surface, rect):
-            self._previous_blit = surface.blit(self._buffer, offset)
-            if surfaces:
-                surfaces_offset = -offset[0], -offset[1]
-                self.sprite_renderer.render_sprites(
-                    surface,
-                    surfaces_offset,
-                    self.viewport.tile_view,
-                    surfaces,
-                )
+            sprite_renderer.render_sprites(
+                surface,
+                surfaces_offset,
+                tile_view,
+                surfaces,
+            )
