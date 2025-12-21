@@ -33,12 +33,17 @@ def _default_scaler(src: Surface, size: tuple[int, int], dest: Surface) -> None:
 
 class BufferedRenderer:
     """
-    Renderer that support scrolling, zooming, layers, and animated tiles
+    Buffered tilemap renderer with support for scrolling, zooming,
+    animated tiles, and sprite layering.
 
-    The buffered renderer must be used with a data class to get tile,
-    shape, and animation information.  See the data class api in
-    pyscroll.data, or use the built-in pytmx support for loading maps
-    created with Tiled.
+    The renderer maintains an off-screen buffer of the visible map region
+    and delegates all camera and coordinate calculations to a
+    `ViewportBase` implementation. Tile images, animation data, and map
+    metadata are provided by a `PyscrollDataAdapter`.
+
+    This renderer is projection-agnostic: orthographic, isometric, or
+    custom projections can be implemented by supplying an appropriate
+    viewport and sprite renderer.
     """
 
     _rgba_clear_color: ColorRGBA = (0, 0, 0, 0)
@@ -61,23 +66,42 @@ class BufferedRenderer:
         viewport: Optional[ViewportBase] = None,
     ) -> None:
         """
-        Constructor
+        Create a buffered tilemap renderer.
 
-        NOTE: `colorkey` and `alpha` are special-purpose transparency flags
-            and are not related to tile alpha values. In most cases, you
-            do not need to set them.
+        This renderer maintains an off-screen buffer of the visible map region
+        and supports scrolling, zooming, animated tiles, and sprite rendering.
+        All camera and coordinate calculations are delegated to a `ViewportBase`
+        implementation.
 
-        Args:
-            data: Map data source that provides tile, shape, and animation info.
-            size: Size of the visible screen area in pixels (width, height).
-            clamp_camera: If True, restricts camera from scrolling beyond map bounds.
-            colorkey: RGB tuple to set transparency color. Rarely needed.
-            alpha: Enables RGBA transparency buffer. Rarely needed.
-            time_source: Callable for time tracking (used in tile animation updates).
-            scaling_function: Function used to scale the final render buffer when zoomed.
-            tall_sprites: Deprecated. Included for compatibility but not supported.
-            sprite_damage_height: Adjusts layering of tall sprites vs tile layers.
-            zoom: View scaling factor. Use values >1 to zoom in, values <1 to zoom out.
+        Parameters
+        ----------
+        data:
+            Tile and map data provider.
+        size:
+            Displayed viewport size in pixels.
+        clamp_camera:
+            Restrict camera movement to map bounds.
+        colorkey:
+            Optional RGB transparency key for the buffer.
+        alpha:
+            Use an RGBA buffer instead of colorkey transparency.
+        time_source:
+            Time function used for animation updates.
+        scaling_function:
+            Function used to scale the buffer when zoom != 1.0.
+        tall_sprites:
+            Deprecated; kept for compatibility.
+        sprite_damage_height:
+            Adjusts layering for tall sprites.
+        zoom:
+            Initial zoom level.
+        viewport:
+            Optional custom viewport. If omitted, a standard orthographic
+            `ViewPort` is created.
+
+        Notes
+        -----
+        The renderer creates one or two internal buffers depending on zoom.
         """
         self.data = data
         self.time_source = time_source
