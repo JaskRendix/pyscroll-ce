@@ -1,21 +1,17 @@
 import logging
-import math
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from pygame.rect import Rect
 from pygame.surface import Surface
 
-from pyscroll.common import RectLike, Vector2D, surface_clipping_context
+from pyscroll.common import RectLike, surface_clipping_context
 from pyscroll.data import PyscrollDataAdapter
 from pyscroll.group import Renderable
 from pyscroll.orthographic import BufferedRenderer, _default_scaler
 from pyscroll.sprite_manager import IsometricSpriteRenderer
-
-if TYPE_CHECKING:
-
-    from pyscroll.quadtree import FastQuadTree
+from pyscroll.viewport import IsometricViewport
 
 log = logging.getLogger(__file__)
 
@@ -71,6 +67,8 @@ class IsometricBufferedRenderer(BufferedRenderer):
         sprite_damage_height: int = 0,
         zoom: float = 1.0,
     ) -> None:
+        self.viewport = IsometricViewport(data, size, zoom, clamp_camera)
+
         super().__init__(
             data=data,
             size=size,
@@ -83,62 +81,9 @@ class IsometricBufferedRenderer(BufferedRenderer):
             sprite_damage_height=sprite_damage_height,
             zoom=zoom,
         )
+
         self.sprite_renderer = IsometricSpriteRenderer()
-
-    def _initialize_buffers(self, view_size: tuple[int, int]) -> None:
-        """Create the buffers to cache tile drawing for isometric maps."""
-        tw, th = self.data.tile_size
-        mw, mh = self.data.map_size
-
-        buffer_tile_width = int(math.ceil(view_size[0] / tw) + 2) * 2
-        buffer_tile_height = int(math.ceil(view_size[1] / th) + 2) * 2
-        buffer_pixel_size = buffer_tile_width * tw, buffer_tile_height * th
-
-        self.map_rect = Rect(0, 0, mw * tw, mh * th)
-        self.view_rect.size = view_size
-        self._previous_blit = Rect(self.view_rect)
-
-        self._tile_view = Rect(0, 0, buffer_tile_width, buffer_tile_height)
-        self._redraw_cutoff = 0
-
-        self._create_buffers(view_size, buffer_pixel_size)
-
-        assert self._buffer is not None
-
-        self._half_width = view_size[0] // 2
-        self._half_height = view_size[1] // 2
-        self._x_offset = 0
-        self._y_offset = 0
-        self._layer_quadtree: Optional[FastQuadTree] = None
-        self.redraw_tiles(self._buffer)
-
-    def center(self, coords: Vector2D) -> None:
-        """Center the map on a 'map pixel' in isometric space."""
-        x, y = [round(i, 0) for i in coords]
-        self.view_rect.center = x, y
-
-        tw, th = self.data.tile_size
-
-        left, ox = divmod(x, tw)
-        top, oy = divmod(y, th)
-
-        vec = int(ox / 2), int(oy)
-        iso = vector2_to_iso(vec)
-        self._x_offset = iso[0]
-        self._y_offset = iso[1]
-
-        assert self._buffer is not None
-
-        self._x_offset += (self._buffer.get_width() - self.view_rect.width) // 2
-        self._y_offset += (self._buffer.get_height() - self.view_rect.height) // 4
-
-        dx = int(left - self._tile_view.left)
-        dy = int(top - self._tile_view.top)
-        view_change = max(abs(dx), abs(dy))
-
-        if view_change:
-            self._tile_view.move_ip(dx, dy)
-            self.redraw_tiles(self._buffer)
+        self._redraw_cutoff = 0  # always full redraw for isometric
 
     def redraw_tiles(self, surface: Surface) -> None:
         """Redraw the entire visible portion of the isometric tile buffer."""
@@ -148,7 +93,7 @@ class IsometricBufferedRenderer(BufferedRenderer):
         if self._clear_color is not None:
             surface.fill(self._clear_color)
 
-        v = self._tile_view
+        v = self.viewport._tile_view
         tw, th = self.data.tile_size
 
         twh = tw // 2
@@ -185,10 +130,13 @@ class IsometricBufferedRenderer(BufferedRenderer):
         if self._buffer is None:
             return
 
-        if not self._anchored_view:
+        if self.viewport._anchored_view:
             self._clear_surface(surface, self._previous_blit)
 
-        offset = -self._x_offset + rect.left, -self._y_offset + rect.top
+        offset = (
+            -self.viewport._x_offset + rect.left,
+            -self.viewport._y_offset + rect.top,
+        )
 
         with surface_clipping_context(surface, rect):
             self._previous_blit = surface.blit(self._buffer, offset)
@@ -197,17 +145,13 @@ class IsometricBufferedRenderer(BufferedRenderer):
                 self.sprite_renderer.render_sprites(
                     surface,
                     surfaces_offset,
-                    self._tile_view,
+                    self.viewport._tile_view,
                     surfaces,
                 )
 
     def _clear_surface(self, surface: Surface, area: Optional[RectLike] = None) -> None:
         """
         Clear the surface using the right clear color.
-
-        Args:
-            surface: surface to clear
-            area: area to clear
         """
         clear_color = (
             self._rgb_clear_color if self._clear_color is None else self._clear_color

@@ -50,16 +50,15 @@ FRICTION_BASE = 0.0001
 WINDOW_SIZE = (800, 600)
 
 
-# simple wrapper to keep the screen resizeable
 def init_screen(width: int, height: int) -> Surface:
     return pygame.display.set_mode((width, height), pygame.RESIZABLE)
 
 
 class ScrollTest:
-    """Test and demo of pyscroll
+    """
+    Test and demo of pyscroll
 
     For normal use, please see the quest demo, not this.
-
     """
 
     def __init__(self, filename: Path, screen: Surface) -> None:
