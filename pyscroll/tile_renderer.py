@@ -155,3 +155,55 @@ class TileRenderer(TileRendererProtocol):
             clear_color = self._rgba_clear_color if has_alpha else self._rgb_clear_color
 
         surface.fill(clear_color, area)
+
+
+class IsometricTileRenderer(TileRendererProtocol):
+    def __init__(
+        self,
+        data: PyscrollDataAdapter,
+        clear_color: Optional[ColorRGB | ColorRGBA],
+    ):
+        self.data = data
+        self._clear_color = clear_color
+
+    def queue_edge_tiles(
+        self, tile_view: Rect, dx: int, dy: int, buffer_surface: Surface
+    ) -> list[tuple[int, int, int, Surface]]:
+        return []
+
+    def flush_tile_queue(
+        self,
+        tile_queue: Iterable[tuple[int, int, int, Surface]],
+        tile_view: Rect,
+        buffer_surface: Surface,
+    ) -> None:
+        return
+
+    def redraw_all(self, tile_view: Rect, buffer_surface: Surface) -> None:
+        if self._clear_color is not None:
+            buffer_surface.fill(self._clear_color)
+
+        tw, th = self.data.tile_size
+        twh = tw // 2
+        thh = th // 2
+
+        blit = buffer_surface.blit
+
+        for x in range(tile_view.left, tile_view.right):
+            for y in range(tile_view.top, tile_view.bottom):
+                lx = x - tile_view.left
+                ly = y - tile_view.top
+
+                iso_x = (lx - ly) * twh
+                iso_y = (lx + ly) * thh
+
+                for layer in self.data.visible_tile_layers:
+                    tile = self.data.get_tile_image(x, y, layer)
+                    if tile:
+                        blit(tile, (iso_x, iso_y))
+
+    def clear_region(self, surface: Surface, area: Optional[RectLike] = None) -> None:
+        clear_color = (
+            self._clear_color if self._clear_color is not None else (0, 0, 0, 0)
+        )
+        surface.fill(clear_color)
