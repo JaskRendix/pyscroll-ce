@@ -187,3 +187,104 @@ def test_large_map():
     buffer_surface = Surface((320, 320))
     queue = renderer.queue_edge_tiles(tile_view, 1, 0, buffer_surface)
     assert len(queue) == 10  # one column of 10 tiles
+
+
+def test_queue_edge_tiles_no_buffer_surface(tile_renderer, tile_view):
+    spy = []
+    tile_renderer.clear_region = lambda *args, **kwargs: spy.append(True)
+
+    queue = tile_renderer.queue_edge_tiles(tile_view, 1, 0, None)
+
+    assert spy == []  # no clear calls
+    assert len(queue) > 0  # still returns tiles
+
+
+def test_queue_edge_tiles_no_movement_no_clear(tile_renderer, tile_view):
+    spy = []
+    tile_renderer.clear_region = lambda *args, **kwargs: spy.append(True)
+
+    queue = tile_renderer.queue_edge_tiles(tile_view, 0, 0, Surface((128, 128)))
+
+    assert spy == []  # nothing cleared
+    assert queue == []  # no tiles added
+
+
+def test_clear_region_accepts_rect(tile_renderer):
+    surface = Surface((64, 64), flags=SRCALPHA)
+    surface.fill((255, 255, 255, 255))
+
+    area = Rect(10, 10, 20, 20)
+    tile_renderer.clear_region(surface, area)
+
+    for x in range(10, 30):
+        for y in range(10, 30):
+            assert surface.get_at((x, y)) == (0, 0, 0, 0)
+
+
+def test_flush_tile_queue_does_not_mutate_queue(tile_view):
+    adapter = DummyAdapter()
+    renderer = TileRenderer(adapter, (0, 0, 0, 0))
+    buffer_surface = Surface((128, 128))
+
+    original = [(2, 2, 0, adapter._tile), (3, 2, 0, adapter._tile)]
+    queue = list(original)
+
+    renderer.flush_tile_queue(queue, tile_view, buffer_surface)
+
+    assert queue == original  # unchanged
+
+
+def test_flush_tile_queue_calls_prepare_once(tile_view):
+    adapter = DummyAdapter()
+    renderer = TileRenderer(adapter, (0, 0, 0, 0))
+
+    calls = []
+    adapter.prepare_tiles = lambda tv: calls.append(tv)
+
+    queue = [(2, 2, 0, adapter._tile)]
+    buffer_surface = Surface((128, 128))
+
+    renderer.flush_tile_queue(queue, tile_view, buffer_surface)
+
+    assert calls == [tile_view]
+
+
+def test_flush_tile_queue_empty_queue(tile_view):
+    adapter = DummyAdapter()
+    renderer = TileRenderer(adapter, (0, 0, 0, 0))
+    buffer_surface = Surface((128, 128))
+
+    renderer.flush_tile_queue([], tile_view, buffer_surface)  # should not crash
+
+
+def test_redraw_all_calls_flush_correctly(tile_view):
+    adapter = DummyAdapter()
+    renderer = TileRenderer(adapter, (0, 0, 0, 0))
+
+    captured = {}
+
+    def fake_flush(queue, view, surface):
+        captured["queue"] = list(queue)
+        captured["view"] = view
+
+    renderer.flush_tile_queue = fake_flush
+
+    buffer_surface = Surface((64, 64))
+    renderer.redraw_all(tile_view, buffer_surface)
+
+    expected_queue = adapter.get_tile_images_by_rect(tile_view)
+
+    assert captured["view"] == tile_view
+    assert captured["queue"] == expected_queue
+
+
+def test_redraw_all_rgb_surface(tile_view):
+    adapter = DummyAdapter()
+    renderer = TileRenderer(adapter, (0, 0, 0))  # RGB clear color
+    buffer_surface = Surface((64, 64))  # no alpha
+
+    renderer.redraw_all(tile_view, buffer_surface)
+
+    for x in range(64):
+        for y in range(64):
+            assert buffer_surface.get_at((x, y)) == (255, 0, 0)
