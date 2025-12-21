@@ -87,7 +87,6 @@ class BufferedRenderer:
         self.sprite_damage_height = sprite_damage_height
         self.map_rect = Rect(0, 0, 0, 0)
         self._layer_quadtree: Optional[FastQuadTree] = None
-        self.tile_renderer = TileRenderer(self.data, self._clear_surface)
 
         # internal private defaults
         self._clear_color: Optional[ColorRGB | ColorRGBA]
@@ -100,6 +99,7 @@ class BufferedRenderer:
             self._clear_color = self._rgba_clear_color
         else:
             self._clear_color = None
+        self.tile_renderer = TileRenderer(self.data, self._clear_color)
 
         # private attributes
         # if true, map is fixed to upper left corner
@@ -326,7 +326,7 @@ class BufferedRenderer:
             return
         # TODO/BUG: Animated tiles are getting reset here
         log.debug("pyscroll buffer redraw")
-        self._clear_surface(self._buffer)
+        self.tile_renderer._perform_surface_clear(self._buffer)
         tile_queue = self.data.get_tile_images_by_rect(self._tile_view)
         self.tile_renderer.flush_tile_queue(tile_queue, self._tile_view, self._buffer)
 
@@ -439,7 +439,7 @@ class BufferedRenderer:
 
         # TODO: could maybe optimize to remove just the edges, ideally by drawing lines
         if not self._anchored_view:
-            self._clear_surface(surface, self._previous_blit)
+            self.tile_renderer._perform_surface_clear(surface, self._previous_blit)
 
         offset = -self._x_offset + rect.left, -self._y_offset + rect.top
 
@@ -450,19 +450,6 @@ class BufferedRenderer:
                 self.sprite_renderer.render_sprites(
                     surface, surfaces_offset, self._tile_view, surfaces
                 )
-
-    def _clear_surface(self, surface: Surface, area: Optional[RectLike] = None) -> None:
-        """
-        Clear the surface using the right clear color.
-
-        Args:
-            surface: surface to clear
-            area: area to clear
-        """
-        clear_color = (
-            self._rgb_clear_color if self._clear_color is None else self._clear_color
-        )
-        surface.fill(clear_color, area)
 
     @staticmethod
     def _calculate_zoom_buffer_size(

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Optional
 from pygame.rect import Rect
 from pygame.surface import Surface
 
-from pyscroll.common import Vector2D, surface_clipping_context
+from pyscroll.common import RectLike, Vector2D, surface_clipping_context
 from pyscroll.data import PyscrollDataAdapter
 from pyscroll.group import Renderable
 from pyscroll.orthographic import BufferedRenderer, _default_scaler
@@ -200,3 +200,16 @@ class IsometricBufferedRenderer(BufferedRenderer):
                     self._tile_view,
                     surfaces,
                 )
+
+    def _clear_surface(self, surface: Surface, area: Optional[RectLike] = None) -> None:
+        """
+        Clear the surface using the right clear color.
+
+        Args:
+            surface: surface to clear
+            area: area to clear
+        """
+        clear_color = (
+            self._rgb_clear_color if self._clear_color is None else self._clear_color
+        )
+        surface.fill(clear_color, area)

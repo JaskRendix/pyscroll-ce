@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Optional
 
 from pygame.rect import Rect
@@ -14,19 +14,25 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__file__)
 
+ColorRGB = tuple[int, int, int]
+ColorRGBA = tuple[int, int, int, int]
+
 
 class TileRenderer:
     def __init__(
         self,
         data: PyscrollDataAdapter,
-        clear_surface: Callable[[Surface, Optional[RectLike]], None],
+        clear_color: Optional[ColorRGB | ColorRGBA],
     ):
         """
         data: PyscrollDataAdapter
         clear_surface: function(surface, area) -> None
         """
         self.data = data
-        self.clear_surface = clear_surface
+        self._clear_color = clear_color
+        # Define internal defaults
+        self._rgba_clear_color: ColorRGBA = (0, 0, 0, 0)
+        self._rgb_clear_color: ColorRGB = (0, 0, 0)
 
     def queue_edge_tiles(
         self, tile_view: Rect, dx: int, dy: int, buffer_surface: Surface
@@ -52,7 +58,7 @@ class TileRenderer:
             pw = rect[2] * tw
             ph = rect[3] * th
 
-            self.clear_surface(buffer_surface, (px, py, pw, ph))
+            self._perform_surface_clear(buffer_surface, (px, py, pw, ph))
 
         # Horizontal movement
         if dx > 0:
@@ -97,3 +103,16 @@ class TileRenderer:
         """
         tile_queue = self.data.get_tile_images_by_rect(tile_view)
         self.flush_tile_queue(tile_queue, tile_view, buffer_surface)
+
+    def _perform_surface_clear(
+        self, surface: Surface, area: Optional[RectLike] = None
+    ) -> None:
+        """Clear the surface using the appropriate clear color."""
+        if self._clear_color is not None:
+            clear_color = self._clear_color
+        else:
+            # Choose RGB or RGBA based on surface format
+            has_alpha = surface.get_masks()[3] != 0
+            clear_color = self._rgba_clear_color if has_alpha else self._rgb_clear_color
+
+        surface.fill(clear_color, area)

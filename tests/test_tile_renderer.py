@@ -43,7 +43,7 @@ class DummyAdapter(PyscrollDataAdapter):
 @pytest.fixture
 def tile_renderer():
     adapter = DummyAdapter()
-    return TileRenderer(adapter, lambda surf, area=None: None)
+    return TileRenderer(adapter, (0, 0, 0, 0))
 
 
 @pytest.fixture
