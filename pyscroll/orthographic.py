@@ -180,7 +180,7 @@ class BufferedRenderer:
     @zoom.setter
     def zoom(self, value: float) -> None:
         """Delegate to viewport and re-initialize all buffers."""
-        self.viewport.zoom = value  # Setter calls self.set_size internally
+        self.viewport.zoom = value
         self._initialize_buffers_from_viewport()
 
     def set_size(self, size: tuple[int, int]) -> None:
@@ -247,9 +247,7 @@ class BufferedRenderer:
         if view_change <= self._redraw_cutoff:
             # Scroll the buffer surface
             self._buffer.scroll(-dx * tw, -dy * th)
-            self.viewport._tile_view.move_ip(
-                dx, dy
-            )  # ViewPort keeps track of new tile indices
+            self.viewport._tile_view.move_ip(dx, dy)
             tile_queue = self.tile_renderer.queue_edge_tiles(
                 self.viewport._tile_view, dx, dy, self._buffer
             )
