@@ -7,26 +7,12 @@ from typing import TYPE_CHECKING
 
 from pygame.rect import Rect
 
-from pyscroll.common import RectLike, Vector2D
+from pyscroll.common import RectLike, Vector2D, vector2_to_iso
 
 if TYPE_CHECKING:
     from pyscroll.data import PyscrollDataAdapter
 
 log = logging.getLogger(__file__)
-
-
-def vector2_to_iso(
-    vector2: tuple[int, int], offset: tuple[int, int] = (0, 0)
-) -> tuple[int, int]:
-    """
-    Convert 2D cartesian coordinates to isometric coordinates.
-    """
-    if not isinstance(vector2, tuple) or len(vector2) != 2:
-        raise ValueError("Input tuple must have exactly 2 elements")
-    return (
-        (vector2[0] - vector2[1]) + offset[0],
-        ((vector2[0] + vector2[1]) >> 1) + offset[1],
-    )
 
 
 class ViewportBase(ABC):

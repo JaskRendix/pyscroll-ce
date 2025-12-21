@@ -61,6 +61,34 @@ def rect_to_bb(rect: RectLike) -> tuple[int, int, int, int]:
     return x, y, x + w - 1, y + h - 1
 
 
+def vector3_to_iso(
+    vector3: tuple[int, int, int], offset: tuple[int, int] = (0, 0)
+) -> tuple[int, int]:
+    """
+    Convert 3D cartesian coordinates to isometric coordinates.
+    """
+    if not isinstance(vector3, tuple) or len(vector3) != 3:
+        raise ValueError("Input tuple must have exactly 3 elements")
+    return (
+        (vector3[0] - vector3[1]) + offset[0],
+        ((vector3[0] + vector3[1]) >> 1) - vector3[2] + offset[1],
+    )
+
+
+def vector2_to_iso(
+    vector2: tuple[int, int], offset: tuple[int, int] = (0, 0)
+) -> tuple[int, int]:
+    """
+    Convert 2D cartesian coordinates to isometric coordinates.
+    """
+    if not isinstance(vector2, tuple) or len(vector2) != 2:
+        raise ValueError("Input tuple must have exactly 2 elements")
+    return (
+        (vector2[0] - vector2[1]) + offset[0],
+        ((vector2[0] + vector2[1]) >> 1) + offset[1],
+    )
+
+
 T = TypeVar("T")
 
 
