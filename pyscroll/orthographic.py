@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import pygame
 from pygame.rect import Rect
@@ -54,7 +54,7 @@ class BufferedRenderer:
         data: PyscrollDataAdapter,
         size: tuple[int, int],
         clamp_camera: bool = True,
-        colorkey: Optional[tuple[int, int, int]] = None,
+        colorkey: tuple[int, int, int] | None = None,
         alpha: bool = False,
         time_source: Callable[[], float] = time.time,
         scaling_function: Callable[
@@ -63,7 +63,7 @@ class BufferedRenderer:
         tall_sprites: int = 0,
         sprite_damage_height: int = 0,
         zoom: float = 1.0,
-        viewport: Optional[ViewportBase] = None,
+        viewport: ViewportBase | None = None,
     ) -> None:
         """
         Create a buffered tilemap renderer.
@@ -125,8 +125,8 @@ class BufferedRenderer:
             self.data, colorkey, alpha
         )
 
-        self._buffer: Optional[Surface] = None
-        self._zoom_buffer: Optional[Surface] = None
+        self._buffer: Surface | None = None
+        self._zoom_buffer: Surface | None = None
 
         self._initialize_buffers_from_viewport()
 

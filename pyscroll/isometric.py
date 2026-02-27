@@ -1,17 +1,16 @@
 import logging
 import time
 from collections.abc import Callable
-from typing import Optional
 
 from pygame.rect import Rect
 from pygame.surface import Surface
 
-from pyscroll.common import RectLike, surface_clipping_context
+from pyscroll.common import surface_clipping_context
 from pyscroll.data import PyscrollDataAdapter
 from pyscroll.group import Renderable
 from pyscroll.orthographic import BufferedRenderer, _default_scaler
 from pyscroll.sprite_manager import IsometricSpriteRenderer
-from pyscroll.tile_renderer import IsometricTileRenderer, TileRendererProtocol
+from pyscroll.tile_renderer import IsometricTileRenderer
 from pyscroll.viewport import IsometricViewport
 
 log = logging.getLogger(__file__)
@@ -30,7 +29,7 @@ class IsometricBufferedRenderer(BufferedRenderer):
         data: PyscrollDataAdapter,
         size: tuple[int, int],
         clamp_camera: bool = True,
-        colorkey: Optional[tuple[int, int, int]] = None,
+        colorkey: tuple[int, int, int] | None = None,
         alpha: bool = False,
         time_source: Callable[[], float] = time.time,
         scaling_function: Callable[
@@ -60,7 +59,7 @@ class IsometricBufferedRenderer(BufferedRenderer):
         self.tile_renderer = IsometricTileRenderer(data, colorkey, alpha)
         self.sprite_renderer = IsometricSpriteRenderer()
 
-        self._last_offset: Optional[tuple[int, int]] = None
+        self._last_offset: tuple[int, int] | None = None
         self._redraw_cutoff: int = 0
 
     def redraw_tiles(self, surface: Surface) -> None:

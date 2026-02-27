@@ -1,7 +1,6 @@
 import pygame
 import pytest
 from pygame import Rect, Surface
-
 from pyscroll.data import PyscrollDataAdapter
 from pyscroll.quadtree import FastQuadTree
 from pyscroll.sprite_manager import SpriteRenderer
@@ -35,13 +34,13 @@ class DummyAdapter(PyscrollDataAdapter):
     def get_animations(self):
         return []
 
-    def _get_tile_image(self, x, y, l):
+    def _get_tile_image(self, x, y, layer):
         return self._tile
 
     def _get_tile_image_by_id(self, id):
         return self._tile
 
-    def _get_tile_gid(self, x, y, l):
+    def _get_tile_gid(self, x, y, layer):
         return 0
 
 

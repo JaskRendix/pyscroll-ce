@@ -302,7 +302,6 @@ class ViewPort(ViewportBase):
 
 
 class IsometricViewport(ViewPort):
-
     def __init__(
         self,
         data: PyscrollDataAdapter,

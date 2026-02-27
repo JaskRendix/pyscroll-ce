@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from pygame.rect import Rect
 
 from pyscroll.camera import BaseCamera
@@ -10,10 +8,10 @@ from pyscroll.camera import BaseCamera
 class CameraManager:
     def __init__(self, initial_camera: BaseCamera):
         self.current = initial_camera
-        self.next_cam: Optional[BaseCamera] = None
+        self.next_cam: BaseCamera | None = None
         self.transition_time: float = 0
         self.transition_duration: float = 0
-        self.start_pos: Optional[tuple[float, float]] = None
+        self.start_pos: tuple[float, float] | None = None
 
     def set_camera(self, cam: BaseCamera, duration: float = 0.0) -> None:
         if duration <= 0:

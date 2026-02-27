@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 import pytest
 from pygame.rect import Rect
 from pygame.surface import Surface
-
 from pyscroll.data import MapAggregator, PyscrollDataAdapter
 
 
@@ -63,8 +62,8 @@ def test_get_tile_images_by_rect_layer_adjustment(aggregator, mock_data1, mock_d
     rect = Rect(0, 0, 10, 5)
     tiles = list(aggregator.get_tile_images_by_rect(rect))
     # Ensure layers are adjusted by z offset
-    assert any(l == 0 for _, _, l, _ in tiles)
-    assert any(l == 11 for _, _, l, _ in tiles)
+    assert any(layer == 0 for _, _, layer, _ in tiles)
+    assert any(layer == 11 for _, _, layer, _ in tiles)
 
 
 def test_add_map_negative_coordinates_normalization(aggregator, mock_data1):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Optional, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from pygame.rect import Rect
 from pygame.surface import Surface
@@ -152,7 +152,7 @@ class IsometricSpriteRenderer(SpriteRendererProtocol):
 
         ox, oy = offset
 
-        blit_list: list[tuple[int, int, Surface, tuple[int, int], Optional[int]]] = []
+        blit_list: list[tuple[int, int, Surface, tuple[int, int], int | None]] = []
         order = 0
 
         for renderable in surfaces:

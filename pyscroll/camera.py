@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 import random
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from pygame.math import Vector2
 from pygame.rect import Rect
@@ -14,7 +13,7 @@ class BaseCamera(ABC):
     Abstract base class for all camera types.
     """
 
-    def __init__(self, lerp_factor: float = 1.0, deadzone: Optional[Rect] = None):
+    def __init__(self, lerp_factor: float = 1.0, deadzone: Rect | None = None):
         self.lerp_factor = lerp_factor
         self.deadzone = deadzone
         self._shake_amount = 0

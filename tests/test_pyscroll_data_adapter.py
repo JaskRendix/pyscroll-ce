@@ -1,10 +1,8 @@
 from collections.abc import Iterable
-from typing import Optional
 
 import pytest
 from pygame.rect import Rect
 from pygame.surface import Surface
-
 from pyscroll.data import PyscrollDataAdapter
 
 
@@ -31,16 +29,16 @@ class DummyAdapter(PyscrollDataAdapter):
     def reload_data(self) -> None:
         raise NotImplementedError
 
-    def _get_tile_image(self, x: int, y: int, l: int) -> Optional[Surface]:
+    def _get_tile_image(self, x: int, y: int, layer: int) -> Surface | None:
         return None
 
-    def _get_tile_image_by_id(self, id: int) -> Optional[Surface]:
+    def _get_tile_image_by_id(self, id: int) -> Surface | None:
         raise NotImplementedError
 
     def get_animations(self) -> Iterable[tuple[int, list[tuple[int, int]]]]:
         raise NotImplementedError
 
-    def _get_tile_gid(self, x: int, y: int, l: int) -> Optional[int]:
+    def _get_tile_gid(self, x: int, y: int, layer: int) -> int | None:
         raise NotImplementedError
 
 

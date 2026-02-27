@@ -1,5 +1,4 @@
 import pytest
-
 from pyscroll.common import vector2_to_iso, vector3_to_iso
 
 

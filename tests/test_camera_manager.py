@@ -1,6 +1,5 @@
 import pytest
 from pygame.rect import Rect
-
 from pyscroll.camera import BaseCamera
 from pyscroll.camera_manager import CameraManager
 

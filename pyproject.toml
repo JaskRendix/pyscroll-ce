@@ -7,10 +7,12 @@ name = "pyscroll-ce"
 version = "2.0"
 description = "Fast scrolling maps library for pygame"
 readme = "README.md"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 authors = [
-    {name = "Giorgio", email = "menzigi@duck.com"}
+    { name = "Giorgio", email = "menzigi@duck.com" }
 ]
+requires-python = ">=3.10"
+
 classifiers = [
     "Intended Audience :: Developers",
     "Development Status :: 5 - Production/Stable",
@@ -23,7 +25,6 @@ classifiers = [
     "Topic :: Multimedia :: Graphics",
     "Topic :: Software Development :: Libraries :: pygame",
 ]
-requires-python = ">=3.10"
 
 dependencies = [
     "pygame-ce",
@@ -40,11 +41,15 @@ include-package-data = true
 where = ["."]
 include = ["pyscroll"]
 
-[tool.black]
+[tool.ruff]
 line-length = 88
-target-version = ["py39"]
+target-version = "py310"
+src = ["pyscroll"]
 
-[tool.isort]
-line_length = 88
-profile = "black"
-skip_gitignore = true
+[tool.ruff.lint]
+extend-select = ["I"]  # enable import sorting
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

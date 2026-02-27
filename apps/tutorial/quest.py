@@ -1,4 +1,4 @@
-""" Quest - An epic journey.
+"""Quest - An epic journey.
 
 Simple demo that demonstrates PyTMX and pyscroll.
 
@@ -30,12 +30,11 @@ from pygame.locals import (
 from pygame.rect import Rect
 from pygame.sprite import Sprite
 from pygame.surface import Surface
-from pytmx.util_pygame import load_pygame  # type: ignore
-
 from pyscroll.camera import FollowCamera
 from pyscroll.data import TiledMapData
 from pyscroll.group import PyscrollGroup
 from pyscroll.orthographic import BufferedRenderer
+from pytmx.util_pygame import load_pygame  # type: ignore
 
 # define configuration variables here
 CURRENT_DIR = Path(__file__).parent
@@ -193,12 +192,16 @@ class QuestGame:
         self.hero.velocity[1] = (
             -HERO_MOVE_SPEED
             if pressed[K_UP]
-            else HERO_MOVE_SPEED if pressed[K_DOWN] else 0
+            else HERO_MOVE_SPEED
+            if pressed[K_DOWN]
+            else 0
         )
         self.hero.velocity[0] = (
             -HERO_MOVE_SPEED
             if pressed[K_LEFT]
-            else HERO_MOVE_SPEED if pressed[K_RIGHT] else 0
+            else HERO_MOVE_SPEED
+            if pressed[K_RIGHT]
+            else 0
         )
 
     def update(self, dt: float) -> None:

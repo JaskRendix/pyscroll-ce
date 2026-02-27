@@ -34,10 +34,9 @@ from pygame.locals import (
 )
 from pygame.math import Vector2
 from pygame.surface import Surface
-from pytmx.util_pygame import load_pygame  # type: ignore
-
 from pyscroll.data import TiledMapData
 from pyscroll.orthographic import BufferedRenderer
+from pytmx.util_pygame import load_pygame  # type: ignore
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

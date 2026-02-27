@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Optional, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from pygame.rect import Rect
 from pygame.surface import Surface
@@ -24,7 +24,7 @@ class TileRendererProtocol(Protocol):
     """
 
     @property
-    def clear_color(self) -> Optional[ColorRGB | ColorRGBA]: ...
+    def clear_color(self) -> ColorRGB | ColorRGBA | None: ...
 
     def queue_edge_tiles(
         self,
@@ -47,21 +47,19 @@ class TileRendererProtocol(Protocol):
         buffer_surface: Surface,
     ) -> None: ...
 
-    def clear_region(
-        self, surface: Surface, area: Optional[RectLike] = None
-    ) -> None: ...
+    def clear_region(self, surface: Surface, area: RectLike | None = None) -> None: ...
 
 
 class TileRenderer(TileRendererProtocol):
     def __init__(
         self,
         data: PyscrollDataAdapter,
-        colorkey: Optional[ColorRGB] = None,
+        colorkey: ColorRGB | None = None,
         alpha: bool = False,
     ):
         self.data = data
 
-        self._clear_color: Optional[ColorRGB | ColorRGBA]
+        self._clear_color: ColorRGB | ColorRGBA | None
 
         if colorkey and alpha:
             raise ValueError("cannot select both colorkey and alpha")
@@ -77,7 +75,7 @@ class TileRenderer(TileRendererProtocol):
         self._rgb_clear_color: ColorRGB = (0, 0, 0)
 
     @property
-    def clear_color(self) -> Optional[ColorRGB | ColorRGBA]:
+    def clear_color(self) -> ColorRGB | ColorRGBA | None:
         return self._clear_color
 
     def queue_edge_tiles(
@@ -167,7 +165,7 @@ class TileRenderer(TileRendererProtocol):
         tile_queue = self.data.get_tile_images_by_rect(tile_view)
         self.flush_tile_queue(tile_queue, tile_view, buffer_surface)
 
-    def clear_region(self, surface: Surface, area: Optional[RectLike] = None) -> None:
+    def clear_region(self, surface: Surface, area: RectLike | None = None) -> None:
         if self._clear_color is not None:
             clear_color = self._clear_color
         else:
@@ -181,12 +179,12 @@ class IsometricTileRenderer(TileRendererProtocol):
     def __init__(
         self,
         data: PyscrollDataAdapter,
-        colorkey: Optional[ColorRGB] = None,
+        colorkey: ColorRGB | None = None,
         alpha: bool = False,
     ):
         self.data = data
 
-        self._clear_color: Optional[ColorRGB | ColorRGBA]
+        self._clear_color: ColorRGB | ColorRGBA | None
 
         if colorkey and alpha:
             raise ValueError("cannot select both colorkey and alpha")
@@ -199,7 +197,7 @@ class IsometricTileRenderer(TileRendererProtocol):
             self._clear_color = None
 
     @property
-    def clear_color(self) -> Optional[ColorRGB | ColorRGBA]:
+    def clear_color(self) -> ColorRGB | ColorRGBA | None:
         return self._clear_color
 
     def queue_edge_tiles(
@@ -238,7 +236,7 @@ class IsometricTileRenderer(TileRendererProtocol):
                     if tile:
                         blit(tile, (iso_x, iso_y))
 
-    def clear_region(self, surface: Surface, area: Optional[RectLike] = None) -> None:
+    def clear_region(self, surface: Surface, area: RectLike | None = None) -> None:
         clear_color = (
             self._clear_color if self._clear_color is not None else (0, 0, 0, 0)
         )

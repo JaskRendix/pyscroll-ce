@@ -1,7 +1,6 @@
 import pygame
 import pytest
 from pygame.surface import Surface
-
 from pyscroll.data import ProceduralData
 
 

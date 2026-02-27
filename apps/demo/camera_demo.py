@@ -3,12 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pygame
-from pygame.locals import *
+import pygame.locals
 from pygame.math import Vector2
 from pygame.sprite import Sprite
 from pygame.surface import Surface
-from pytmx.util_pygame import load_pygame  # type: ignore
-
 from pyscroll.camera import (
     BasicCamera,
     CutsceneCamera,
@@ -20,6 +18,7 @@ from pyscroll.camera_manager import CameraManager
 from pyscroll.data import MapAggregator, TiledMapData
 from pyscroll.group import PyscrollGroup
 from pyscroll.orthographic import BufferedRenderer
+from pytmx.util_pygame import load_pygame  # type: ignore
 
 CURRENT_DIR = Path(__file__).parent
 RESOURCES_DIR = CURRENT_DIR
@@ -94,30 +93,30 @@ class CameraDemo:
 
     def handle_input(self):
         for event in pygame.event.get():
-            if event.type == QUIT:
+            if event.type == pygame.locals.QUIT:
                 self.running = False
-            elif event.type == KEYDOWN:
-                if event.key == K_ESCAPE:
+            elif event.type == pygame.locals.KEYDOWN:
+                if event.key == pygame.locals.K_ESCAPE:
                     self.running = False
 
-                elif event.key == K_1:
+                elif event.key == pygame.locals.K_1:
                     self.camera_manager.set_camera(self.cam_smooth, duration=1.0)
-                elif event.key == K_2:
+                elif event.key == pygame.locals.K_2:
                     self.camera_manager.set_camera(self.cam_platformer, duration=1.0)
-                elif event.key == K_3:
+                elif event.key == pygame.locals.K_3:
                     self.camera_manager.set_camera(self.cam_zoom, duration=1.0)
-                elif event.key == K_4:
+                elif event.key == pygame.locals.K_4:
                     self.camera_manager.set_camera(self.cam_cutscene, duration=1.0)
-                elif event.key == K_5:
+                elif event.key == pygame.locals.K_5:
                     self.camera_manager.set_camera(self.cam_debug, duration=0.5)
 
-                elif event.key == K_EQUALS:
+                elif event.key == pygame.locals.K_EQUALS:
                     self.map_layer.zoom += ZOOM_STEP
-                elif event.key == K_MINUS:
+                elif event.key == pygame.locals.K_MINUS:
                     if self.map_layer.zoom - ZOOM_STEP > 0:
                         self.map_layer.zoom -= ZOOM_STEP
 
-            elif event.type == VIDEORESIZE:
+            elif event.type == pygame.locals.VIDEORESIZE:
                 self.screen = pygame.display.set_mode(
                     (event.w, event.h), pygame.RESIZABLE
                 )
@@ -126,24 +125,24 @@ class CameraDemo:
         pressed = pygame.key.get_pressed()
         self.hero.velocity.xy = 0, 0
 
-        if pressed[K_UP]:
+        if pressed[pygame.locals.K_UP]:
             self.hero.velocity.y = -HERO_MOVE_SPEED
-        elif pressed[K_DOWN]:
+        elif pressed[pygame.locals.K_DOWN]:
             self.hero.velocity.y = HERO_MOVE_SPEED
 
-        if pressed[K_LEFT]:
+        if pressed[pygame.locals.K_LEFT]:
             self.hero.velocity.x = -HERO_MOVE_SPEED
-        elif pressed[K_RIGHT]:
+        elif pressed[pygame.locals.K_RIGHT]:
             self.hero.velocity.x = HERO_MOVE_SPEED
 
         dx = dy = 0
-        if pressed[K_w]:
+        if pressed[pygame.locals.K_w]:
             dy = -1
-        if pressed[K_s]:
+        if pressed[pygame.locals.K_s]:
             dy = 1
-        if pressed[K_a]:
+        if pressed[pygame.locals.K_a]:
             dx = -1
-        if pressed[K_d]:
+        if pressed[pygame.locals.K_d]:
             dx = 1
         self.cam_debug.set_input(dx, dy)
 

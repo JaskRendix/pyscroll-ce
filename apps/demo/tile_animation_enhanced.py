@@ -13,7 +13,6 @@ import random
 
 import pygame
 from pygame.locals import QUIT
-
 from pyscroll.animation import AnimationFrame, AnimationToken
 
 

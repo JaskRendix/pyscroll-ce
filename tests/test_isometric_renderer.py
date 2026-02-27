@@ -1,7 +1,6 @@
 import pygame
 import pytest
 from pygame import Rect, Surface
-
 from pyscroll.data import PyscrollDataAdapter
 from pyscroll.isometric import IsometricBufferedRenderer
 from pyscroll.sprite_manager import IsometricSpriteRenderer
@@ -32,7 +31,7 @@ class DummyAdapter(PyscrollDataAdapter):
     def reload_data(self):
         pass
 
-    def _get_tile_image(self, x, y, l):
+    def _get_tile_image(self, x, y, layer):
         return self._tile
 
     def _get_tile_image_by_id(self, id):
@@ -41,7 +40,7 @@ class DummyAdapter(PyscrollDataAdapter):
     def get_animations(self):
         return []
 
-    def _get_tile_gid(self, x, y, l):
+    def _get_tile_gid(self, x, y, layer):
         return 0
 
 

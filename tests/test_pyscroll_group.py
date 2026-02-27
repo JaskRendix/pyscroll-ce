@@ -5,7 +5,6 @@ import pytest
 from pygame.rect import Rect
 from pygame.sprite import Sprite
 from pygame.surface import Surface
-
 from pyscroll.group import PyscrollGroup
 from pyscroll.orthographic import BufferedRenderer
 

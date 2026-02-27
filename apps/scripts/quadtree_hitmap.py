@@ -21,7 +21,6 @@ import random
 
 import pygame
 from pygame.rect import Rect
-
 from pyscroll.quadtree import FastQuadTree
 
 # Configuration

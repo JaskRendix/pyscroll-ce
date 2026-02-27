@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from itertools import chain
-from typing import Optional
 
 from pygame.rect import Rect
 
@@ -27,7 +26,7 @@ class FastQuadTree:
     __slots__ = ["items", "cx", "cy", "nw", "ne", "sw", "se", "boundary"]
 
     def __init__(
-        self, items: Sequence[Rect], depth: int = 4, boundary: Optional[Rect] = None
+        self, items: Sequence[Rect], depth: int = 4, boundary: Rect | None = None
     ) -> None:
         if not items:
             raise ValueError("Items must not be empty")

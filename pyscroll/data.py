@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from heapq import heappop, heappush
 from itertools import product
-from typing import Any, Optional
+from typing import Any
 
 import pygame
 from pygame.rect import Rect
@@ -81,12 +81,12 @@ class PyscrollDataAdapter(ABC):
         ...
 
     @abstractmethod
-    def _get_tile_image(self, x: int, y: int, l: int) -> Optional[Surface]:
+    def _get_tile_image(self, x: int, y: int, layer: int) -> Surface | None:
         """Return tile image at coordinates, or None if empty."""
         ...
 
     @abstractmethod
-    def _get_tile_image_by_id(self, id: int) -> Optional[Surface]:
+    def _get_tile_image_by_id(self, id: int) -> Surface | None:
         """Return image by tile ID."""
         ...
 
@@ -96,7 +96,7 @@ class PyscrollDataAdapter(ABC):
         ...
 
     @abstractmethod
-    def _get_tile_gid(self, x: int, y: int, l: int) -> Optional[int]:
+    def _get_tile_gid(self, x: int, y: int, layer: int) -> int | None:
         """Return the tile GID at coordinates, or None."""
         ...
 
@@ -143,7 +143,6 @@ class PyscrollDataAdapter(ABC):
 
         # test if the next scheduled tile change is ready
         while self._animation_queue[0].next <= self._last_time:
-
             # get the next tile/frame which is ready to be changed
             token = heappop(self._animation_queue)
             next_frame = token.advance(self._last_time)
@@ -153,28 +152,21 @@ class PyscrollDataAdapter(ABC):
             # for position in self._tracked_tiles & token.positions:
 
             for position in token.positions.copy():
-                x, y, l = position
+                x, y, layer = position  # actual tile layer
 
-                # if this tile is on the buffer (checked by using the tile view)
                 if tile_view.collidepoint(x, y):
-
-                    # record the location of this tile, in case of a screen wipe, or sprite cover
                     self._animated_tile[position] = next_frame.image
 
                     # redraw the entire column of tiles
-                    for layer in tile_layers:
-                        if layer == l:
-
+                    for tile_layer in tile_layers:  # renamed variable
+                        if tile_layer == layer:
                             # queue the new animated tile
-                            new_tiles.append((x, y, layer, next_frame.image))
+                            new_tiles.append((x, y, tile_layer, next_frame.image))
                         else:
-
                             # queue the normal tile
-                            image = self.get_tile_image(x, y, layer)
+                            image = self.get_tile_image(x, y, tile_layer)
                             if image:
-                                new_tiles.append((x, y, layer, image))
-
-                # not on screen, but was previously.  clear it.
+                                new_tiles.append((x, y, tile_layer, image))
                 else:
                     token.positions.remove(position)
 
@@ -238,25 +230,25 @@ class PyscrollDataAdapter(ABC):
             self._animation_map[gid] = ani
             heappush(self._animation_queue, ani)
 
-    def get_tile_image(self, x: int, y: int, l: int) -> Optional[Surface]:
+    def get_tile_image(self, x: int, y: int, layer: int) -> Surface | None:
         """
         Get a tile image, respecting current animations.
 
         Args:
             x: x coordinate
             y: y coordinate
-            l: layer
+            layer: layer
         """
-        position: tuple[int, int, int] = (x, y, l)
+        position: tuple[int, int, int] = (x, y, layer)
 
         try:
             return self._animated_tile[position]
 
         except KeyError:
-            image = self._get_tile_image(x, y, l)
+            image = self._get_tile_image(x, y, layer)
 
             if self._animation_map:
-                gid = self._get_tile_gid(x, y, l)
+                gid = self._get_tile_gid(x, y, layer)
                 if gid in self._animation_map:
                     token = self._animation_map[gid]
                     token.positions.add(position)
@@ -349,7 +341,7 @@ class TiledMapData(PyscrollDataAdapter):
                 yield gid, frames
 
     def convert_surfaces(self, parent: Surface, alpha: bool = False) -> None:
-        images: list[Optional[Surface]] = []
+        images: list[Surface | None] = []
         for i in self.tmx.images:
             try:
                 images.append(i.convert_alpha() if alpha else i.convert(parent))
@@ -377,19 +369,19 @@ class TiledMapData(PyscrollDataAdapter):
             if isinstance(layer, pytmx.TiledObjectGroup)
         )
 
-    def _get_tile_gid(self, x: int, y: int, l: int) -> Optional[int]:
+    def _get_tile_gid(self, x: int, y: int, layer: int) -> int | None:
         try:
-            return self.tmx.layers[l].data[y][x]
+            return self.tmx.layers[layer].data[y][x]
         except (IndexError, AttributeError):
             return None
 
-    def _get_tile_image(self, x: int, y: int, l: int) -> Optional[Surface]:
+    def _get_tile_image(self, x: int, y: int, layer: int) -> Surface | None:
         try:
-            return self.tmx.get_tile_image(x, y, l)
+            return self.tmx.get_tile_image(x, y, layer)
         except ValueError:
             return None
 
-    def _get_tile_image_by_id(self, id: int) -> Optional[Surface]:
+    def _get_tile_image_by_id(self, id: int) -> Surface | None:
         return self.tmx.images[id]
 
     def get_tile_images_by_rect(
@@ -403,21 +395,21 @@ class TiledMapData(PyscrollDataAdapter):
         anim_map = self._animation_map
         track = bool(self._animation_queue)
 
-        for l in self.tmx.visible_tile_layers:
-            for y, row in rev(layers[l].data, y1, y2):
+        for layer in self.tmx.visible_tile_layers:
+            for y, row in rev(layers[layer].data, y1, y2):
                 for x, gid in [i for i in rev(row, x1, x2) if i[1]]:
                     # since the tile has been queried, assume it wants
                     # to be checked for animations sometime in the future
                     if track and gid in tracked_gids:
-                        anim_map[gid].positions.add((x, y, l))
+                        anim_map[gid].positions.add((x, y, layer))
                     try:
                         # animated, so return the correct frame
-                        tile = at[(x, y, l)]
+                        tile = at[(x, y, layer)]
                     except KeyError:
                         # not animated, so return surface from data, if any
                         tile = images[gid]
                     if tile:
-                        yield x, y, l, tile
+                        yield x, y, layer, tile
 
 
 class MapAggregator(PyscrollDataAdapter):
@@ -455,11 +447,11 @@ class MapAggregator(PyscrollDataAdapter):
     def visible_tile_layers(self) -> list[int]:
         layers = set()
         for data, _, z in self.maps:
-            layers.update([l + z for l in data.visible_tile_layers])
+            layers.update([layer + z for layer in data.visible_tile_layers])
         return sorted(layers)
 
     def world_to_local(
-        self, x: int, y: int, l: int
+        self, x: int, y: int, layer: int
     ) -> tuple[PyscrollDataAdapter, int, int, int] | None:
         """
         Convert world coordinates (x, y, l) into the correct
@@ -469,7 +461,7 @@ class MapAggregator(PyscrollDataAdapter):
             if rect.collidepoint(x, y):
                 local_x = x - rect.left
                 local_y = y - rect.top
-                local_l = l - z
+                local_l = layer - z
                 if local_l in data.visible_tile_layers:
                     return data, local_x, local_y, local_l
         return None
@@ -563,21 +555,21 @@ class MapAggregator(PyscrollDataAdapter):
             ox, oy = rect.topleft
             clipped = rect.clip(view).move(-ox, -oy)
             if clipped.width > 0 and clipped.height > 0:
-                for x, y, l, image in data.get_tile_images_by_rect(clipped):
-                    yield x + ox, y + oy, l + z, image
+                for x, y, layer, image in data.get_tile_images_by_rect(clipped):
+                    yield x + ox, y + oy, layer + z, image
 
-    def _get_tile_image(self, x: int, y: int, l: int) -> Optional[Surface]:
+    def _get_tile_image(self, x: int, y: int, layer: int) -> Surface | None:
         """Delegate tile image lookup using world_to_local()."""
-        info = self.world_to_local(x, y, l)
+        info = self.world_to_local(x, y, layer)
         if not info:
             return None
 
         data, lx, ly, ll = info
         return data._get_tile_image(lx, ly, ll)
 
-    def _get_tile_gid(self, x: int, y: int, l: int) -> Optional[int]:
+    def _get_tile_gid(self, x: int, y: int, layer: int) -> int | None:
         """Delegate GID lookup using world_to_local()."""
-        info = self.world_to_local(x, y, l)
+        info = self.world_to_local(x, y, layer)
         if not info:
             return None
 
@@ -587,7 +579,7 @@ class MapAggregator(PyscrollDataAdapter):
         except NotImplementedError:
             return None
 
-    def _get_tile_image_by_id(self, id: int) -> Optional[Surface]:
+    def _get_tile_image_by_id(self, id: int) -> Surface | None:
         """Delegate image lookup by ID to child maps (first match)."""
         for data, _, _ in self.maps:
             try:
@@ -673,22 +665,22 @@ class ProceduralData(PyscrollDataAdapter):
         """No external data to reload."""
         pass
 
-    def _get_tile_image_by_id(self, id: int) -> Optional[Surface]:
+    def _get_tile_image_by_id(self, id: int) -> Surface | None:
         return self._surfaces.get(id)
 
-    def _get_tile_gid(self, x: int, y: int, l: int) -> Optional[int]:
+    def _get_tile_gid(self, x: int, y: int, layer: int) -> int | None:
         if not self.is_on_map(x, y):
             return None
 
-        if l == 0:
+        if layer == 0:
             return self._GID_GRASS if (x + y) % 2 == 0 else self._GID_WATER
-        elif l == 1:
+        elif layer == 1:
             if x % 5 == 0 and y % 5 == 0:
                 return self._GID_ROCK
         return None
 
-    def _get_tile_image(self, x: int, y: int, l: int) -> Optional[Surface]:
-        gid = self._get_tile_gid(x, y, l)
+    def _get_tile_image(self, x: int, y: int, layer: int) -> Surface | None:
+        gid = self._get_tile_gid(x, y, layer)
         return self._surfaces.get(gid) if gid is not None else None
 
     def get_animations(self) -> list[Any]:

@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
-from typing import Any, TypeVar, Union
+from typing import Any, TypeVar
 
 from pygame.math import Vector2
 from pygame.rect import Rect
 from pygame.surface import Surface
 
-RectLike = Union[Rect, tuple[int, int, int, int]]
-Vector2D = Union[tuple[float, float], tuple[int, int], Vector2]
+RectLike = Rect | tuple[int, int, int, int]
+Vector2D = tuple[float, float] | tuple[int, int] | Vector2
 
 
 @contextmanager
