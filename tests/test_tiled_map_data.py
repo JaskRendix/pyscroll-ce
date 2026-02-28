@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import pygame
 import pytest
 from pygame.surface import Surface
+
 from pyscroll.data import TiledMapData
 
 

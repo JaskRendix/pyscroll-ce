@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 from pygame.rect import Rect
 from pygame.surface import Surface
+
 from pyscroll.data import MapAggregator, PyscrollDataAdapter
 
 

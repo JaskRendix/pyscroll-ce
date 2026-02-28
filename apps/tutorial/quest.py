@@ -30,11 +30,12 @@ from pygame.locals import (
 from pygame.rect import Rect
 from pygame.sprite import Sprite
 from pygame.surface import Surface
+from pytmx.util_pygame import load_pygame  # type: ignore
+
 from pyscroll.camera import FollowCamera
 from pyscroll.data import TiledMapData
 from pyscroll.group import PyscrollGroup
 from pyscroll.orthographic import BufferedRenderer
-from pytmx.util_pygame import load_pygame  # type: ignore
 
 # define configuration variables here
 CURRENT_DIR = Path(__file__).parent

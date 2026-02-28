@@ -10,6 +10,7 @@ from __future__ import annotations
 import time
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
+from contextlib import suppress
 from heapq import heappop, heappush
 from itertools import product
 from typing import Any
@@ -18,11 +19,8 @@ import pygame
 from pygame.rect import Rect
 from pygame.surface import Surface
 
-try:
-    # optional pytmx support
+with suppress(ImportError):
     import pytmx
-except ImportError:
-    pass
 
 from pyscroll.animation import AnimationFrame, AnimationToken
 from pyscroll.common import RectLike, rect_to_bb, rev
@@ -674,9 +672,8 @@ class ProceduralData(PyscrollDataAdapter):
 
         if layer == 0:
             return self._GID_GRASS if (x + y) % 2 == 0 else self._GID_WATER
-        elif layer == 1:
-            if x % 5 == 0 and y % 5 == 0:
-                return self._GID_ROCK
+        elif layer == 1 and x % 5 == 0 and y % 5 == 0:
+            return self._GID_ROCK
         return None
 
     def _get_tile_image(self, x: int, y: int, layer: int) -> Surface | None:

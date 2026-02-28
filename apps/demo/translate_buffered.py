@@ -11,9 +11,10 @@ from pygame.locals import QUIT
 from pygame.rect import Rect
 from pygame.sprite import Group, Sprite
 from pygame.surface import Surface
+from pytmx.util_pygame import load_pygame  # type: ignore
+
 from pyscroll.data import TiledMapData
 from pyscroll.orthographic import BufferedRenderer
-from pytmx.util_pygame import load_pygame  # type: ignore
 
 # Constants
 RESOURCES_DIR = Path(__file__).parent

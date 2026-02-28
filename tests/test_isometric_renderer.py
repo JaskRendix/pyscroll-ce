@@ -1,6 +1,7 @@
 import pygame
 import pytest
 from pygame import Rect, Surface
+
 from pyscroll.data import PyscrollDataAdapter
 from pyscroll.isometric import IsometricBufferedRenderer
 from pyscroll.sprite_manager import IsometricSpriteRenderer

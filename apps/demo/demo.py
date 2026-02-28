@@ -14,7 +14,6 @@ pygame sprites and groups.
 import logging
 from collections import deque
 from pathlib import Path
-from typing import Deque
 
 import pygame
 from pygame.font import Font
@@ -34,9 +33,10 @@ from pygame.locals import (
 )
 from pygame.math import Vector2
 from pygame.surface import Surface
+from pytmx.util_pygame import load_pygame  # type: ignore
+
 from pyscroll.data import TiledMapData
 from pyscroll.orthographic import BufferedRenderer
-from pytmx.util_pygame import load_pygame  # type: ignore
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -136,7 +136,7 @@ class ScrollTest:
     def run(self) -> None:
         clock = pygame.time.Clock()
         self.running = True
-        fps_log: Deque[float] = deque(maxlen=20)
+        fps_log: deque[float] = deque(maxlen=20)
 
         while self.running:
             clock.tick(120)

@@ -1,5 +1,6 @@
 import pytest
 from pygame import SRCALPHA, Rect, Surface
+
 from pyscroll.data import PyscrollDataAdapter
 from pyscroll.tile_renderer import TileRenderer
 

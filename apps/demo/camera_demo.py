@@ -7,6 +7,8 @@ import pygame.locals
 from pygame.math import Vector2
 from pygame.sprite import Sprite
 from pygame.surface import Surface
+from pytmx.util_pygame import load_pygame  # type: ignore
+
 from pyscroll.camera import (
     BasicCamera,
     CutsceneCamera,
@@ -18,7 +20,6 @@ from pyscroll.camera_manager import CameraManager
 from pyscroll.data import MapAggregator, TiledMapData
 from pyscroll.group import PyscrollGroup
 from pyscroll.orthographic import BufferedRenderer
-from pytmx.util_pygame import load_pygame  # type: ignore
 
 CURRENT_DIR = Path(__file__).parent
 RESOURCES_DIR = CURRENT_DIR
@@ -112,9 +113,11 @@ class CameraDemo:
 
                 elif event.key == pygame.locals.K_EQUALS:
                     self.map_layer.zoom += ZOOM_STEP
-                elif event.key == pygame.locals.K_MINUS:
-                    if self.map_layer.zoom - ZOOM_STEP > 0:
-                        self.map_layer.zoom -= ZOOM_STEP
+                elif (
+                    event.key == pygame.locals.K_MINUS
+                    and self.map_layer.zoom - ZOOM_STEP > 0
+                ):
+                    self.map_layer.zoom -= ZOOM_STEP
 
             elif event.type == pygame.locals.VIDEORESIZE:
                 self.screen = pygame.display.set_mode(

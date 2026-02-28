@@ -21,6 +21,7 @@ import random
 
 import pygame
 from pygame.rect import Rect
+
 from pyscroll.quadtree import FastQuadTree
 
 # Configuration
@@ -63,9 +64,8 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_h:  # Toggle hit visibility
-                    show_hits = not show_hits
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_h:
+                show_hits = not show_hits
 
         # Draw all rectangles (gray)
         for rect in tile_rects:

@@ -22,18 +22,17 @@ jobs:
       uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
+        cache: pip
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
         pip install ruff pytest
-        pip install pygame-ce pytmx
         pip install .
 
-    - name: Lint with ruff
+    - name: Lint with Ruff
       run: |
-        ruff check .
-        ruff format --check .
+        ruff check --output-format=github .
+        ruff format --check
 
     - name: Run tests
       run: pytest tests

@@ -26,6 +26,7 @@ import timeit
 from argparse import ArgumentParser
 
 from pygame.rect import Rect
+
 from pyscroll.quadtree import FastQuadTree
 
 

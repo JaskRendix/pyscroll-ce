@@ -1,6 +1,6 @@
 PACKAGE_NAME := pyscroll
 
-.PHONY: build clean publish install lint format test
+.PHONY: build clean publish install lint fix format test all
 
 build:
 	python3 -m build
@@ -15,8 +15,15 @@ install:
 	pip install -e .
 
 lint:
-	-python -m ruff check . --fix
-	python -m ruff format .
+	ruff check .
+
+fix:
+	ruff check . --fix --unsafe-fixes
+
+format:
+	ruff format .
 
 test:
 	pytest tests/
+
+all: fix format lint

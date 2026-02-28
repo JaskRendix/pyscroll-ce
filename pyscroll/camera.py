@@ -162,10 +162,7 @@ class PlatformerCamera(BaseCamera):
         new_x = cx + (tx - cx) * t
 
         # Vertical follow only if outside deadzone
-        if abs(ty - cy) > self.vertical_deadzone:
-            new_y = cy + (ty - cy) * t
-        else:
-            new_y = cy
+        new_y = cy + (ty - cy) * t if abs(ty - cy) > self.vertical_deadzone else cy
 
         new_x, new_y = self._apply_shake(new_x, new_y)
         return (new_x, new_y)

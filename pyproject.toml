@@ -42,14 +42,20 @@ where = ["."]
 include = ["pyscroll"]
 
 [tool.ruff]
+fix = true
 line-length = 88
 target-version = "py310"
-src = ["pyscroll"]
 
 [tool.ruff.lint]
-extend-select = ["I"]  # enable import sorting
+select = [
+    "W",   # pycodestyle warnings
+    "I",   # import sorting
+    "UP",  # pyupgrade
+    "SIM", # simplify
+]
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
 line-ending = "lf"
+docstring-code-format = true

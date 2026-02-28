@@ -4,6 +4,7 @@
 # around with. Think of it as a quick visual smoke test rather than a full game.
 
 import pygame
+
 from pyscroll.data import ProceduralData
 from pyscroll.orthographic import BufferedRenderer
 
