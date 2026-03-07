@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from pygame.rect import Rect
+from typing import TYPE_CHECKING
 
-from pyscroll.camera import BaseCamera
+if TYPE_CHECKING:
+    from pygame.rect import Rect
+
+    from pyscroll.camera import BaseCamera
 
 
 class CameraManager:

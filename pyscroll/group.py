@@ -3,13 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from pygame.rect import FRect, Rect
 from pygame.sprite import LayeredUpdates, Sprite
-from pygame.surface import Surface
-
-from pyscroll.common import Vector2D
 
 if TYPE_CHECKING:
+    from pygame.rect import FRect, Rect
+    from pygame.surface import Surface
+
+    from pyscroll.common import Vector2D
     from pyscroll.orthographic import BufferedRenderer
 
 

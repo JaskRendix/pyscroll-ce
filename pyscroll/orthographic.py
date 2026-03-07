@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import pygame
@@ -16,6 +15,8 @@ from pyscroll.tile_renderer import TileRenderer, TileRendererProtocol
 from pyscroll.viewport import ViewPort, ViewportBase
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from pyscroll.data import PyscrollDataAdapter
     from pyscroll.group import Renderable
 

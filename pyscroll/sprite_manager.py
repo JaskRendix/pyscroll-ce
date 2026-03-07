@@ -6,11 +6,10 @@ from typing import TYPE_CHECKING, Protocol
 from pygame.rect import Rect
 from pygame.surface import Surface
 
-from pyscroll.quadtree import FastQuadTree
-
 if TYPE_CHECKING:
     from pyscroll.data import PyscrollDataAdapter
     from pyscroll.group import Renderable
+    from pyscroll.quadtree import FastQuadTree
 
 log = logging.getLogger(__file__)
 

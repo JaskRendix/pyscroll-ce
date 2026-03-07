@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import random
-from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from pygame.surface import Surface
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from pygame.surface import Surface
 
 TimeLike = float | int
 

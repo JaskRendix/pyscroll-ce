@@ -9,11 +9,10 @@ from __future__ import annotations
 
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
 from contextlib import suppress
 from heapq import heappop, heappush
 from itertools import product
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pygame
 from pygame.rect import Rect
@@ -24,6 +23,9 @@ with suppress(ImportError):
 
 from pyscroll.animation import AnimationFrame, AnimationToken
 from pyscroll.common import RectLike, rect_to_bb, rev
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 __all__ = (
     "PyscrollDataAdapter",

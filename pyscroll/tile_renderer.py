@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable
 from typing import TYPE_CHECKING, Protocol
 
-from pygame.rect import Rect
-from pygame.surface import Surface
-
-from pyscroll.common import RectLike
-
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from pygame.rect import Rect
+    from pygame.surface import Surface
+
+    from pyscroll.common import RectLike
     from pyscroll.data import PyscrollDataAdapter
 
 log = logging.getLogger(__file__)

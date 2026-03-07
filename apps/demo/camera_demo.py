@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pygame
 import pygame.locals
 from pygame.math import Vector2
 from pygame.sprite import Sprite
-from pygame.surface import Surface
 from pytmx.util_pygame import load_pygame  # type: ignore
 
 from pyscroll.camera import (
@@ -20,6 +20,9 @@ from pyscroll.camera_manager import CameraManager
 from pyscroll.data import MapAggregator, TiledMapData
 from pyscroll.group import PyscrollGroup
 from pyscroll.orthographic import BufferedRenderer
+
+if TYPE_CHECKING:
+    from pygame.surface import Surface
 
 CURRENT_DIR = Path(__file__).parent
 RESOURCES_DIR = CURRENT_DIR

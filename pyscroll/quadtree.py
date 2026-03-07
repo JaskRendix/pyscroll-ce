@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from itertools import chain
+from typing import TYPE_CHECKING
 
 from pygame.rect import Rect
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def get_rect(item: Rect | object) -> Rect:

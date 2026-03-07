@@ -3,9 +3,12 @@ from __future__ import annotations
 import math
 import random
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from pygame.math import Vector2
-from pygame.rect import Rect
+
+if TYPE_CHECKING:
+    from pygame.rect import Rect
 
 
 class BaseCamera(ABC):

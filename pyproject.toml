@@ -52,6 +52,7 @@ select = [
     "I",   # import sorting
     "UP",  # pyupgrade
     "SIM", # simplify
+    "TCH",  # type-checking imports
 ]
 
 [tool.ruff.format]

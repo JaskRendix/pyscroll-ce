@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from pygame.math import Vector2
 from pygame.rect import Rect
-from pygame.surface import Surface
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable, Sequence
+
+    from pygame.surface import Surface
 
 RectLike = Rect | tuple[int, int, int, int]
 Vector2D = tuple[float, float] | tuple[int, int] | Vector2

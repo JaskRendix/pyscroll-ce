@@ -10,6 +10,7 @@ Very basic!  No animations.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pygame
 from pygame.locals import (
@@ -28,13 +29,15 @@ from pygame.locals import (
 from pygame.math import Vector2
 from pygame.rect import Rect
 from pygame.sprite import Sprite
-from pygame.surface import Surface
 from pytmx.util_pygame import load_pygame  # type: ignore
 
 from pyscroll.camera import FollowCamera
 from pyscroll.data import MapAggregator, TiledMapData
 from pyscroll.group import PyscrollGroup
 from pyscroll.orthographic import BufferedRenderer
+
+if TYPE_CHECKING:
+    from pygame.surface import Surface
 
 # define configuration variables here
 CURRENT_DIR = Path(__file__).parent
