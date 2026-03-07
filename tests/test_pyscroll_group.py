@@ -11,11 +11,6 @@ from pyscroll.orthographic import BufferedRenderer
 
 
 @pytest.fixture
-def surface():
-    return Surface((640, 480))
-
-
-@pytest.fixture
 def map_layer():
     return MagicMock(spec=BufferedRenderer)
 

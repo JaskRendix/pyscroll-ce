@@ -7,7 +7,7 @@ from pygame.surface import Surface
 from pyscroll.data import PyscrollDataAdapter
 
 
-class DummyAdapter(PyscrollDataAdapter):
+class MinimalDummyAdapter(PyscrollDataAdapter):
     def __init__(self):
         super().__init__()
         self._animated_tile = {}
@@ -45,7 +45,7 @@ class DummyAdapter(PyscrollDataAdapter):
 
 @pytest.fixture
 def adapter():
-    return DummyAdapter()
+    return MinimalDummyAdapter()
 
 
 @pytest.mark.parametrize(

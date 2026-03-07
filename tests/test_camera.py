@@ -13,16 +13,6 @@ from pyscroll.camera import (
 )
 
 
-@pytest.fixture
-def view_rect():
-    return Rect(0, 0, 640, 480)
-
-
-@pytest.fixture
-def target_rect():
-    return Rect(100, 100, 32, 32)
-
-
 @pytest.mark.parametrize(
     "camera_class",
     [

@@ -5,7 +5,7 @@ from pyscroll.data import PyscrollDataAdapter
 from pyscroll.tile_renderer import TileRenderer
 
 
-class DummyAdapter(PyscrollDataAdapter):
+class TileRendererDummyAdapter(PyscrollDataAdapter):
     tile_size = (32, 32)
     map_size = (32, 32)
     visible_tile_layers = [1]
@@ -42,7 +42,7 @@ class DummyAdapter(PyscrollDataAdapter):
 
 @pytest.fixture
 def tile_renderer():
-    adapter = DummyAdapter()
+    adapter = TileRendererDummyAdapter()
     return TileRenderer(adapter, (0, 0, 0, 0))
 
 
@@ -134,7 +134,7 @@ class ClearSpy:
 )
 def test_queue_edge_tiles_clears_correct_regions(tile_view, dx, dy, expected_clear):
     spy = ClearSpy()
-    adapter = DummyAdapter()
+    adapter = TileRendererDummyAdapter()
     renderer = TileRenderer(adapter, (0, 0, 0, 0))
     renderer.clear_region = spy  # monkeypatch
     buffer_surface = Surface((128, 128))
@@ -143,7 +143,7 @@ def test_queue_edge_tiles_clears_correct_regions(tile_view, dx, dy, expected_cle
 
 
 def test_flush_tile_queue_places_tiles_correctly(tile_view):
-    adapter = DummyAdapter()
+    adapter = TileRendererDummyAdapter()
     renderer = TileRenderer(adapter, (0, 0, 0, 0))
     buffer_surface = Surface((128, 128))
     buffer_surface.fill((0, 0, 0, 0))
@@ -155,7 +155,7 @@ def test_flush_tile_queue_places_tiles_correctly(tile_view):
 
 
 def test_redraw_all_golden(tile_view):
-    adapter = DummyAdapter()
+    adapter = TileRendererDummyAdapter()
     renderer = TileRenderer(adapter, (0, 0, 0, 0))
     buffer_surface = Surface((64, 64), flags=SRCALPHA)
     buffer_surface.fill((0, 0, 0, 0))
@@ -168,7 +168,7 @@ def test_redraw_all_golden(tile_view):
 
 
 def test_large_map():
-    adapter = DummyAdapter()
+    adapter = TileRendererDummyAdapter()
     adapter.map_size = (500, 500)
     renderer = TileRenderer(adapter, (0, 0, 0, 0))
     tile_view = Rect(100, 100, 10, 10)
@@ -210,7 +210,7 @@ def test_clear_region_accepts_rect(tile_renderer):
 
 
 def test_flush_tile_queue_does_not_mutate_queue(tile_view):
-    adapter = DummyAdapter()
+    adapter = TileRendererDummyAdapter()
     renderer = TileRenderer(adapter, (0, 0, 0, 0))
     buffer_surface = Surface((128, 128))
 
@@ -223,7 +223,7 @@ def test_flush_tile_queue_does_not_mutate_queue(tile_view):
 
 
 def test_flush_tile_queue_calls_prepare_once(tile_view):
-    adapter = DummyAdapter()
+    adapter = TileRendererDummyAdapter()
     renderer = TileRenderer(adapter, (0, 0, 0, 0))
 
     calls = []
@@ -238,7 +238,7 @@ def test_flush_tile_queue_calls_prepare_once(tile_view):
 
 
 def test_flush_tile_queue_empty_queue(tile_view):
-    adapter = DummyAdapter()
+    adapter = TileRendererDummyAdapter()
     renderer = TileRenderer(adapter, (0, 0, 0, 0))
     buffer_surface = Surface((128, 128))
 
@@ -246,7 +246,7 @@ def test_flush_tile_queue_empty_queue(tile_view):
 
 
 def test_redraw_all_calls_flush_correctly(tile_view):
-    adapter = DummyAdapter()
+    adapter = TileRendererDummyAdapter()
     renderer = TileRenderer(adapter, (0, 0, 0, 0))
 
     captured = {}
@@ -267,7 +267,7 @@ def test_redraw_all_calls_flush_correctly(tile_view):
 
 
 def test_redraw_all_rgb_surface(tile_view):
-    adapter = DummyAdapter()
+    adapter = TileRendererDummyAdapter()
     renderer = TileRenderer(adapter, (0, 0, 0))  # RGB clear color
     buffer_surface = Surface((64, 64))  # no alpha
 
