@@ -105,15 +105,27 @@ def test_set_animation_speed_multiplier_invalid(adapter):
         adapter.set_animation_speed_multiplier(0)
 
 
-def test_pixel_to_tile(adapter):
-    assert adapter.pixel_to_tile(64, 96) == (2, 3)
-    assert adapter.pixel_to_tile(0, 0) == (0, 0)
-    assert adapter.pixel_to_tile(63.9, 31.9) == (1, 0)
+@pytest.mark.parametrize(
+    "x,y,expected",
+    [
+        pytest.param(0, 0, True, id="origin"),
+        pytest.param(31, 31, True, id="max_valid"),
+        pytest.param(-1, 0, False, id="negative_x"),
+        pytest.param(0, 32, False, id="out_of_bounds_y"),
+        pytest.param(32, 0, False, id="out_of_bounds_x"),
+    ],
+)
+def test_is_on_map(adapter, x, y, expected):
+    assert adapter.is_on_map(x, y) == expected
 
 
-def test_is_on_map(adapter):
-    assert adapter.is_on_map(0, 0)
-    assert adapter.is_on_map(31, 31)
-    assert not adapter.is_on_map(-1, 0)
-    assert not adapter.is_on_map(0, 32)
-    assert not adapter.is_on_map(32, 0)
+@pytest.mark.parametrize(
+    "px,py,expected",
+    [
+        pytest.param(64, 96, (2, 3), id="normal_conversion"),
+        pytest.param(0, 0, (0, 0), id="origin"),
+        pytest.param(63.9, 31.9, (1, 0), id="fractional_floor"),
+    ],
+)
+def test_pixel_to_tile(adapter, px, py, expected):
+    assert adapter.pixel_to_tile(px, py) == expected

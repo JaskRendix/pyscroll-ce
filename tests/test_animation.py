@@ -90,36 +90,46 @@ def test_lt_comparison_with_other_token(frames, positions):
     assert token1 < token2
 
 
-def test_speed_multiplier_affects_duration(frames, positions):
-    token = AnimationToken(positions, frames, speed_multiplier=2.0)
-    assert pytest.approx(token.next, 0.01) == frames[0].duration / 2.0
-
-
-def test_frame_specific_speed_multiplier(positions):
+@pytest.mark.parametrize(
+    "token_speed,frame_speed,expected",
+    [
+        pytest.param(2.0, None, 0.25, id="token_speed_only"),
+        pytest.param(2.0, 2.0, 0.125, id="token_and_frame_speed"),
+        pytest.param(1.0, 2.0, 0.25, id="frame_speed_only"),
+    ],
+)
+def test_speed_multiplier_combinations(positions, token_speed, frame_speed, expected):
     surf = MagicMock()
-    frames = [
-        AnimationFrame(image=surf, duration=1.0, frame_speed_multiplier=2.0),
-    ]
-    token = AnimationToken(positions, frames, speed_multiplier=2.0)
-    assert pytest.approx(token.next, 0.001) == 0.25
+    frame_kwargs = {"image": surf, "duration": 0.5}
+    if frame_speed:
+        frame_kwargs["frame_speed_multiplier"] = frame_speed
+    frames = [AnimationFrame(**frame_kwargs)]
+
+    token = AnimationToken(positions, frames, speed_multiplier=token_speed)
+    assert pytest.approx(token.next, 0.01) == expected
 
 
-def test_ping_pong_reverses(frames, positions):
-    token = AnimationToken(positions, frames, ping_pong=True, loop=True)
+@pytest.mark.parametrize(
+    "loop,check_direction",
+    [
+        pytest.param(True, True, id="ping_pong_looping"),
+        pytest.param(False, False, id="ping_pong_non_looping"),
+    ],
+)
+def test_ping_pong_behavior(frames, positions, loop, check_direction):
+    token = AnimationToken(positions, frames, ping_pong=True, loop=loop)
     token.advance(0.5)
-    assert token.index == 1
-    assert token.direction == 1
+    if check_direction:
+        assert token.index == 1
+        assert token.direction == 1
     token.advance(1.5)
-    assert token.index == 0
-    assert token.direction == -1
-
-
-def test_ping_pong_non_looping_stops(frames, positions):
-    token = AnimationToken(positions, frames, ping_pong=True, loop=False)
-    token.advance(0.5)
-    token.advance(1.5)
-    assert token.done
-    assert token.index == 0
+    if loop:
+        assert token.index == 0
+        assert token.direction == -1
+        assert not token.done
+    else:
+        assert token.done
+        assert token.index == 0
 
 
 def test_random_jitter(frames, positions):

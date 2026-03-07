@@ -74,33 +74,36 @@ def test_queue_edge_tiles(tile_renderer, tile_view, dx, dy, expected):
     assert coords == expected
 
 
-def test_clear_region_clears_only_area(tile_renderer):
-    surface = Surface((64, 64), flags=SRCALPHA)
-    surface.fill((255, 255, 255, 255))
-    tile_renderer.clear_region(surface, (16, 16, 32, 32))
+@pytest.mark.parametrize(
+    "use_alpha,area,size,check_outside",
+    [
+        pytest.param(True, (16, 16, 32, 32), (64, 64), True, id="alpha_partial"),
+        pytest.param(True, None, (32, 32), False, id="alpha_full"),
+        pytest.param(False, (0, 0, 32, 32), (32, 32), False, id="rgb_surface"),
+    ],
+)
+def test_clear_region_behavior(tile_renderer, use_alpha, area, size, check_outside):
+    flags = SRCALPHA if use_alpha else 0
+    fill_color = (255, 255, 255, 255) if use_alpha else (200, 200, 200)
+    expected_clear = (0, 0, 0, 0) if use_alpha else (0, 0, 0)
 
-    for x in range(16, 48):
-        for y in range(16, 48):
-            assert surface.get_at((x, y)) == (0, 0, 0, 0)
+    surface = Surface(size, flags=flags)
+    surface.fill(fill_color)
+    tile_renderer.clear_region(surface, area)
 
-    assert surface.get_at((0, 0)) == (255, 255, 255, 255)
-    assert surface.get_at((63, 63)) == (255, 255, 255, 255)
-
-
-def test_clear_region_full_surface(tile_renderer):
-    surface = Surface((32, 32), flags=SRCALPHA)
-    surface.fill((10, 20, 30, 255))
-    tile_renderer.clear_region(surface, None)
-    for x in range(32):
-        for y in range(32):
-            assert surface.get_at((x, y)) == (0, 0, 0, 0)
-
-
-def test_clear_region_rgb_surface(tile_renderer):
-    surface = Surface((32, 32))
-    surface.fill((200, 200, 200))
-    tile_renderer.clear_region(surface, (0, 0, 32, 32))
-    assert surface.get_at((10, 10)) == (0, 0, 0)
+    if area:
+        x, y, w, h = area
+        for px in range(x, x + w):
+            for py in range(y, y + h):
+                assert surface.get_at((px, py)) == expected_clear
+        if check_outside:
+            assert surface.get_at((0, 0)) == fill_color
+            assert surface.get_at((size[0] - 1, size[1] - 1)) == fill_color
+    else:
+        # Full surface
+        for px in range(size[0]):
+            for py in range(size[1]):
+                assert surface.get_at((px, py)) == expected_clear
 
 
 class ClearSpy:

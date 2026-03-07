@@ -57,48 +57,36 @@ def test_instant_switch(view, target):
     assert manager.next_cam is None
 
 
-def test_transition_starts(view, target):
+@pytest.mark.parametrize(
+    "num_updates,expected_pos_check",
+    [
+        pytest.param(1, "between_0_100", id="transition_starts"),
+        pytest.param(30, "approx_50", id="transition_progress"),
+        pytest.param(60, "exact_100_100", id="transition_completes"),
+    ],
+)
+def test_transition_stages(view, target, num_updates, expected_pos_check):
     cam_a = DummyCamera((0, 0))
     cam_b = DummyCamera((100, 100))
-
     manager = CameraManager(cam_a)
     manager.set_camera(cam_b, duration=1.0)
 
-    pos = manager.update(view, target, 0.016)
-
-    assert 0 < pos[0] < 100
-    assert 0 < pos[1] < 100
-
-    assert manager.start_pos == (0, 0)
-
-
-def test_transition_progress(view, target):
-    cam_a = DummyCamera((0, 0))
-    cam_b = DummyCamera((100, 100))
-
-    manager = CameraManager(cam_a)
-    manager.set_camera(cam_b, duration=1.0)
-
-    for _ in range(30):
+    for _ in range(num_updates):
         pos = manager.update(view, target, 1 / 60)
 
-    assert pos[0] == pytest.approx(50)
-    assert pos[1] == pytest.approx(50)
-
-
-def test_transition_completes(view, target):
-    cam_a = DummyCamera((0, 0))
-    cam_b = DummyCamera((100, 100))
-
-    manager = CameraManager(cam_a)
-    manager.set_camera(cam_b, duration=1.0)
-
-    for _ in range(60):
-        pos = manager.update(view, target, 1 / 60)
-
-    assert pos == (100, 100)
-    assert manager.current is cam_b
-    assert manager.next_cam is None
+    if expected_pos_check == "between_0_100":
+        assert 0 < pos[0] < 100
+        assert 0 < pos[1] < 100
+        assert manager.start_pos == (0, 0)
+        assert manager.next_cam is not None
+    elif expected_pos_check == "approx_50":
+        assert pos[0] == pytest.approx(50)
+        assert pos[1] == pytest.approx(50)
+        assert manager.next_cam is not None
+    elif expected_pos_check == "exact_100_100":
+        assert pos == (100, 100)
+        assert manager.current is cam_b
+        assert manager.next_cam is None
 
 
 def test_target_camera(view, target):
