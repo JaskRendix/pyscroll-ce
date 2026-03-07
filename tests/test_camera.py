@@ -13,13 +13,6 @@ from pyscroll.camera import (
 )
 
 
-@pytest.fixture(scope="module", autouse=True)
-def pygame_init():
-    pygame.init()
-    yield
-    pygame.quit()
-
-
 @pytest.fixture
 def view_rect():
     return Rect(0, 0, 640, 480)
@@ -36,6 +29,7 @@ def target_rect():
         FollowCamera,
         BasicCamera,
         PlatformerCamera,
+        DebugFlyCamera,
     ],
 )
 def test_camera_returns_tuple(camera_class, view_rect, target_rect):

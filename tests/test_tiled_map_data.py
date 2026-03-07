@@ -7,15 +7,6 @@ from pygame.surface import Surface
 from pyscroll.data import TiledMapData
 
 
-@pytest.fixture(scope="session", autouse=True)
-def init_pygame_display():
-    """Initialize a dummy pygame display once for all tests."""
-    pygame.display.init()
-    pygame.display.set_mode((1, 1))
-    yield
-    pygame.display.quit()
-
-
 @pytest.fixture
 def mock_tmx():
     mock = MagicMock()

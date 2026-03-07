@@ -10,13 +10,6 @@ from pyscroll.group import PyscrollGroup
 from pyscroll.orthographic import BufferedRenderer
 
 
-@pytest.fixture(scope="module", autouse=True)
-def pygame_init():
-    pygame.init()
-    yield
-    pygame.quit()
-
-
 @pytest.fixture
 def surface():
     return Surface((640, 480))
