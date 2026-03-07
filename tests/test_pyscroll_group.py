@@ -51,9 +51,18 @@ def test_view(group, map_layer):
 @pytest.mark.parametrize(
     "offset, sprite_pos, expected",
     [
-        ((0, 0), Rect(10, 10, 32, 32), Rect(10, 10, 32, 32)),
-        ((50, 50), Rect(10, 10, 32, 32), Rect(60, 60, 32, 32)),
-        ((-20, -20), Rect(100, 100, 32, 32), Rect(80, 80, 32, 32)),
+        pytest.param(
+            (0, 0), Rect(10, 10, 32, 32), Rect(10, 10, 32, 32), id="no_offset"
+        ),
+        pytest.param(
+            (50, 50), Rect(10, 10, 32, 32), Rect(60, 60, 32, 32), id="positive_offset"
+        ),
+        pytest.param(
+            (-20, -20),
+            Rect(100, 100, 32, 32),
+            Rect(80, 80, 32, 32),
+            id="negative_offset",
+        ),
     ],
 )
 def test_draw_parametrized(
@@ -70,7 +79,13 @@ def test_draw_parametrized(
     assert drawn == [expected]
 
 
-@pytest.mark.parametrize("blendmode", [None, pygame.BLEND_ADD])
+@pytest.mark.parametrize(
+    "blendmode",
+    [
+        pytest.param(None, id="no_blend"),
+        pytest.param(pygame.BLEND_ADD, id="blend_add"),
+    ],
+)
 def test_draw_blendmode(group, map_layer, surface, sprite, blendmode):
     if blendmode is None:
         if hasattr(sprite, "blendmode"):
@@ -91,9 +106,9 @@ def test_draw_blendmode(group, map_layer, surface, sprite, blendmode):
 @pytest.mark.parametrize(
     "sprite_pos, visible",
     [
-        (Rect(10, 10, 32, 32), True),
-        (Rect(1000, 1000, 32, 32), False),
-        (Rect(630, 470, 32, 32), True),  # partially visible
+        pytest.param(Rect(10, 10, 32, 32), True, id="visible"),
+        pytest.param(Rect(1000, 1000, 32, 32), False, id="offscreen"),
+        pytest.param(Rect(630, 470, 32, 32), True, id="partially_visible"),
     ],
 )
 def test_visibility(group, map_layer, surface, sprite, sprite_pos, visible):

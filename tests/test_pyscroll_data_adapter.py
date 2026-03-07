@@ -51,10 +51,10 @@ def adapter():
 @pytest.mark.parametrize(
     "method,args",
     [
-        ("reload_animations", []),
-        ("_get_tile_image_by_id", [0]),
-        ("get_animations", []),
-        ("_get_tile_gid", [0, 0, 0]),
+        pytest.param("reload_animations", [], id="reload_animations"),
+        pytest.param("_get_tile_image_by_id", [0], id="get_tile_image_by_id"),
+        pytest.param("get_animations", [], id="get_animations"),
+        pytest.param("_get_tile_gid", [0, 0, 0], id="get_tile_gid"),
     ],
 )
 def test_not_implemented_methods(adapter, method, args):
@@ -86,7 +86,13 @@ def test_pause_and_resume(adapter):
     assert adapter._paused_time == 0.0 or adapter._paused_time != paused_time
 
 
-@pytest.mark.parametrize("skip_ahead", [False, True])
+@pytest.mark.parametrize(
+    "skip_ahead",
+    [
+        pytest.param(False, id="no_skip"),
+        pytest.param(True, id="skip_ahead"),
+    ],
+)
 def test_update_time_modes(adapter, skip_ahead):
     adapter._pause_mode_skip_ahead = skip_ahead
     before = adapter._last_time

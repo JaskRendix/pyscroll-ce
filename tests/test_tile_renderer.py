@@ -54,10 +54,10 @@ def tile_view():
 @pytest.mark.parametrize(
     "dx, dy, expected",
     [
-        (-1, 0, {(2, 2), (2, 3)}),  # left
-        (1, 0, {(3, 2), (3, 3)}),  # right
-        (0, -1, {(2, 2), (3, 2)}),  # top
-        (0, 1, {(2, 3), (3, 3)}),  # bottom
+        pytest.param(-1, 0, {(2, 2), (2, 3)}, id="left"),
+        pytest.param(1, 0, {(3, 2), (3, 3)}, id="right"),
+        pytest.param(0, -1, {(2, 2), (3, 2)}, id="top"),
+        pytest.param(0, 1, {(2, 3), (3, 3)}, id="bottom"),
     ],
 )
 def test_queue_edge_tiles(tile_renderer, tile_view, dx, dy, expected):
@@ -114,10 +114,10 @@ class ClearSpy:
 @pytest.mark.parametrize(
     "dx, dy, expected_clear",
     [
-        (-1, 0, [(0, 0, 32, 64)]),  # moving left → clear left column
-        (1, 0, [(32, 0, 32, 64)]),  # moving right → clear right column
-        (0, -1, [(0, 0, 64, 32)]),  # moving up → clear top row
-        (0, 1, [(0, 32, 64, 32)]),  # moving down → clear bottom row
+        pytest.param(-1, 0, [(0, 0, 32, 64)], id="moving_left"),
+        pytest.param(1, 0, [(32, 0, 32, 64)], id="moving_right"),
+        pytest.param(0, -1, [(0, 0, 64, 32)], id="moving_up"),
+        pytest.param(0, 1, [(0, 32, 64, 32)], id="moving_down"),
     ],
 )
 def test_queue_edge_tiles_clears_correct_regions(tile_view, dx, dy, expected_clear):
@@ -158,13 +158,13 @@ def test_redraw_all_golden(tile_view):
 @pytest.mark.parametrize(
     "dx, dy",
     [
-        (0, 0),  # no movement
-        (-5, 0),  # large left movement
-        (5, 0),  # large right movement
-        (0, -5),  # large up movement
-        (0, 5),  # large down movement
-        (-100, 0),  # extreme movement
-        (0, 100),
+        pytest.param(0, 0, id="no_movement"),
+        pytest.param(-5, 0, id="large_left"),
+        pytest.param(5, 0, id="large_right"),
+        pytest.param(0, -5, id="large_up"),
+        pytest.param(0, 5, id="large_down"),
+        pytest.param(-100, 0, id="extreme_left"),
+        pytest.param(0, 100, id="extreme_down"),
     ],
 )
 def test_queue_edge_tiles_edge_cases(tile_renderer, tile_view, dx, dy):

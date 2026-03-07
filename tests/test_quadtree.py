@@ -7,18 +7,25 @@ from pyscroll.quadtree import FastQuadTree
 @pytest.mark.parametrize(
     "rectangles, query, expected_count",
     [
-        (
+        pytest.param(
             [Rect(0, 0, 10, 10), Rect(5, 5, 10, 10), Rect(10, 10, 10, 10)],
             Rect(2, 2, 12, 12),
             ">0",
+            id="overlap_multiple",
         ),
-        (
+        pytest.param(
             [Rect(0, 0, 10, 10), Rect(20, 20, 10, 10), Rect(30, 30, 10, 10)],
             Rect(5, 5, 5, 5),
             1,
+            id="single_hit",
         ),
-        ([Rect(0, 0, 10, 10)], Rect(0, 0, 10, 10), 1),
-        ([Rect(0, 0, 10, 10), Rect(20, 20, 10, 10)], Rect(100, 100, 10, 10), 0),
+        pytest.param([Rect(0, 0, 10, 10)], Rect(0, 0, 10, 10), 1, id="exact_match"),
+        pytest.param(
+            [Rect(0, 0, 10, 10), Rect(20, 20, 10, 10)],
+            Rect(100, 100, 10, 10),
+            0,
+            id="no_hit",
+        ),
     ],
 )
 def test_hit(rectangles, query, expected_count):

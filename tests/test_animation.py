@@ -26,7 +26,13 @@ def test_initial_state(frames, positions):
     assert token.next == frames[0].duration
 
 
-@pytest.mark.parametrize("loop,expected_index", [(True, 0), (False, 1)])
+@pytest.mark.parametrize(
+    "loop,expected_index",
+    [
+        pytest.param(True, 0, id="loop_true"),
+        pytest.param(False, 1, id="loop_false"),
+    ],
+)
 def test_advance(frames, positions, loop, expected_index):
     token = AnimationToken(positions, frames, loop=loop)
     token.advance(0.5)
@@ -66,7 +72,13 @@ def test_empty_frame_list_raises(positions):
         AnimationToken(positions, [], loop=True)
 
 
-@pytest.mark.parametrize("number,expected", [(10.0, True), (0.1, False)])
+@pytest.mark.parametrize(
+    "number,expected",
+    [
+        pytest.param(10.0, True, id="number_large"),
+        pytest.param(0.1, False, id="number_small"),
+    ],
+)
 def test_lt_comparison_with_number(frames, positions, number, expected):
     token = AnimationToken(positions, frames)
     assert (token < number) is expected

@@ -26,10 +26,10 @@ def target_rect():
 @pytest.mark.parametrize(
     "camera_class",
     [
-        FollowCamera,
-        BasicCamera,
-        PlatformerCamera,
-        DebugFlyCamera,
+        pytest.param(FollowCamera, id="follow"),
+        pytest.param(BasicCamera, id="basic"),
+        pytest.param(PlatformerCamera, id="platformer"),
+        pytest.param(DebugFlyCamera, id="debug_fly"),
     ],
 )
 def test_camera_returns_tuple(camera_class, view_rect, target_rect):
@@ -199,10 +199,10 @@ def test_bounds_camera_shake_never_escapes_bounds(view_rect, target_rect):
 @pytest.mark.parametrize(
     "camera_class",
     [
-        FollowCamera,
-        BasicCamera,
-        PlatformerCamera,
-        DebugFlyCamera,
+        pytest.param(FollowCamera, id="follow"),
+        pytest.param(BasicCamera, id="basic"),
+        pytest.param(PlatformerCamera, id="platformer"),
+        pytest.param(DebugFlyCamera, id="debug_fly"),
     ],
 )
 def test_shake_is_deterministic(camera_class, view_rect, target_rect):
