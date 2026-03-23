@@ -1,16 +1,18 @@
 import logging
 import time
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from pygame.rect import Rect
 from pygame.surface import Surface
 
-from pyscroll.common import surface_clipping_context
+from pyscroll.common import ColorRGB, ColorRGBA, surface_clipping_context
 from pyscroll.data import PyscrollDataAdapter
 from pyscroll.group import Renderable
 from pyscroll.orthographic import BufferedRenderer, _default_scaler
-from pyscroll.sprite_manager import IsometricSpriteRenderer
-from pyscroll.tile_renderer import IsometricTileRenderer
+from pyscroll.quadtree import FastQuadTree
+from pyscroll.sprite_manager import IsometricSpriteRenderer, SpriteRendererProtocol
+from pyscroll.tile_renderer import IsometricTileRenderer, TileRendererProtocol
 from pyscroll.viewport import IsometricViewport
 
 log = logging.getLogger(__file__)
@@ -39,9 +41,7 @@ class IsometricBufferedRenderer(BufferedRenderer):
         sprite_damage_height: int = 0,
         zoom: float = 1.0,
     ) -> None:
-
         viewport = IsometricViewport(data, size, zoom, clamp_camera)
-
         super().__init__(
             data=data,
             size=size,
@@ -55,12 +55,18 @@ class IsometricBufferedRenderer(BufferedRenderer):
             zoom=zoom,
             viewport=viewport,
         )
-
-        self.tile_renderer = IsometricTileRenderer(data, colorkey, alpha)
-        self.sprite_renderer = IsometricSpriteRenderer()
-
         self._last_offset: tuple[int, int] | None = None
         self._redraw_cutoff: int = 0
+
+    def _create_tile_renderer(
+        self, colorkey: ColorRGB | None = None, alpha: bool = False
+    ) -> TileRendererProtocol:
+        return IsometricTileRenderer(self.data, colorkey, alpha)
+
+    def _create_sprite_renderer(
+        self, data: PyscrollDataAdapter, layer_quadtree: FastQuadTree
+    ) -> SpriteRendererProtocol:
+        return IsometricSpriteRenderer()
 
     def redraw_tiles(self, surface: Surface) -> None:
         """Redraw the entire visible portion of the isometric tile buffer."""

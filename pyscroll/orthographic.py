@@ -8,7 +8,13 @@ import pygame
 from pygame.rect import Rect
 from pygame.surface import Surface
 
-from pyscroll.common import RectLike, Vector2D, surface_clipping_context
+from pyscroll.common import (
+    ColorRGB,
+    ColorRGBA,
+    RectLike,
+    Vector2D,
+    surface_clipping_context,
+)
 from pyscroll.quadtree import FastQuadTree
 from pyscroll.sprite_manager import SpriteRenderer, SpriteRendererProtocol
 from pyscroll.tile_renderer import TileRenderer, TileRendererProtocol
@@ -21,10 +27,6 @@ if TYPE_CHECKING:
     from pyscroll.group import Renderable
 
 log = logging.getLogger(__file__)
-
-
-ColorRGB = tuple[int, int, int]
-ColorRGBA = tuple[int, int, int, int]
 
 
 def _default_scaler(src: Surface, size: tuple[int, int], dest: Surface) -> None:
@@ -163,6 +165,16 @@ class BufferedRenderer:
         viewport = self.viewport
         _, _, dx, dy, view_change = viewport.center(coords)
         self._handle_view_change(dx, dy, view_change)
+
+    def _create_tile_renderer(
+        self, colorkey: ColorRGB | None = None, alpha: bool = False
+    ) -> TileRendererProtocol:
+        return TileRenderer(self.data, colorkey, alpha)
+
+    def _create_sprite_renderer(
+        self, data: PyscrollDataAdapter, layer_quadtree: FastQuadTree
+    ) -> SpriteRendererProtocol:
+        return SpriteRenderer(data, layer_quadtree, self.tall_sprites)
 
     @property
     def zoom(self) -> float:

@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 
 RectLike = Rect | tuple[int, int, int, int]
 Vector2D = tuple[float, float] | tuple[int, int] | Vector2
+ColorRGB = tuple[int, int, int]
+ColorRGBA = tuple[int, int, int, int]
 
 
 @contextmanager
