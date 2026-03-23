@@ -211,16 +211,18 @@ class BoundsCamera(BaseCamera):
     so it never leaves the world bounds.
     """
 
-    def __init__(self, base: BaseCamera, world_rect: Rect):
+    def __init__(self, base: BaseCamera, world_rect: Rect, clamp_shake: bool = True):
         super().__init__(base.lerp_factor, base.deadzone)
         self.base = base
         self.world_rect = world_rect
+        self.clamp_shake = clamp_shake
 
     def update(
         self, current_view: Rect, target_rect: Rect, dt: float
     ) -> tuple[float, float]:
-
         x, y = self.base.update(current_view, target_rect, dt)
+
+        x, y = self._apply_shake(x, y)
 
         half_w = current_view.width // 2
         half_h = current_view.height // 2
@@ -230,8 +232,8 @@ class BoundsCamera(BaseCamera):
         min_y = self.world_rect.top + half_h
         max_y = self.world_rect.bottom - half_h
 
-        clamped_x = max(min_x, min(max_x, x))
-        clamped_y = max(min_y, min(max_y, y))
+        if self.clamp_shake:
+            x = max(min_x, min(max_x, x))
+            y = max(min_y, min(max_y, y))
 
-        clamped_x, clamped_y = self._apply_shake(clamped_x, clamped_y)
-        return (clamped_x, clamped_y)
+        return (x, y)
