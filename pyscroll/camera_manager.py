@@ -20,6 +20,8 @@ class CameraManager:
         if duration <= 0:
             self.current = cam
             self.next_cam = None
+            self.start_pos = None
+            self.transition_time = 0
             return
 
         self.next_cam = cam

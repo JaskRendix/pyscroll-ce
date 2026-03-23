@@ -1,4 +1,5 @@
-import pygame
+import random
+
 import pytest
 from pygame.rect import Rect
 
@@ -152,38 +153,51 @@ def test_bounds_camera_clamps_left_top(view_rect, target_rect):
         assert y == world.top + half_h
 
 
-def test_bounds_camera_shake_never_escapes_bounds(view_rect, target_rect):
-    world = Rect(0, 0, 500, 500)
+def test_bounds_camera_shake_clamped_by_default(view_rect, target_rect):
+    world = Rect(0, 0, 2000, 2000)
     base = FollowCamera(lerp_factor=1.0)
     cam = BoundsCamera(base, world)
 
     target_rect.center = world.center
-    cam.shake(20)
-
-    import random
-
-    random.seed(12345)
-
-    x, y = cam.update(view_rect, target_rect, dt=1.0)
+    cam.shake(100)
 
     half_w = view_rect.width // 2
     half_h = view_rect.height // 2
 
-    # X axis
-    if world.width < view_rect.width:
-        # Camera must remain inside the only valid clamped region
-        assert x <= half_w
-        assert x >= half_w - 20  # shake cannot exceed intensity
-    else:
+    for _ in range(20):
+        x, y = cam.update(view_rect, target_rect, dt=1.0)
         assert world.left + half_w <= x <= world.right - half_w
+        assert world.top + half_h <= y <= world.bottom - half_h
 
-    # Y axis
-    if world.height < view_rect.height:
-        assert y <= half_h
-        assert y >= half_h - 20
-    else:
-        assert y <= world.bottom - half_h
-        assert y >= world.top + half_h - 20
+
+def test_bounds_camera_shake_unclamped(view_rect, target_rect):
+    world = Rect(0, 0, 2000, 2000)
+    base = FollowCamera(lerp_factor=1.0)
+    cam = BoundsCamera(base, world, clamp_shake=False)
+
+    half_w = view_rect.width // 2
+    half_h = view_rect.height // 2
+
+    # Place target exactly at the minimum clamped position
+    # so any shake pushes it outside bounds
+    target_rect.center = (world.left + half_w, world.top + half_h)
+    cam.shake(50)
+
+    random.seed(42)
+
+    escaped = False
+    for _ in range(20):
+        x, y = cam.update(view_rect, target_rect, dt=1.0)
+        if (
+            x < world.left + half_w
+            or x > world.right - half_w
+            or y < world.top + half_h
+            or y > world.bottom - half_h
+        ):
+            escaped = True
+            break
+
+    assert escaped, "shake with clamp_shake=False should be able to escape bounds"
 
 
 @pytest.mark.parametrize(

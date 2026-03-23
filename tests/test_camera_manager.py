@@ -90,3 +90,55 @@ def test_target_camera(view, target_rect):
 
     pos = manager.update(view, target_rect, 0.016)
     assert pos == target_rect.center
+
+
+def test_transition_interrupted_by_new_camera(view, target_rect):
+    cam_a = DummyCamera((0, 0))
+    cam_b = DummyCamera((100, 100))
+    cam_c = DummyCamera((200, 200))
+    manager = CameraManager(cam_a)
+    manager.set_camera(cam_b, duration=1.0)
+    manager.update(view, target_rect, 0.5)  # mid-transition
+    manager.set_camera(cam_c, duration=0)  # instant switch
+    pos = manager.update(view, target_rect, 0.016)
+    assert pos == (200, 200)
+    assert manager.next_cam is None
+
+
+def test_transition_smoothstep_is_smooth(view, target_rect):
+    """Verify smoothstep produces S-curve: slow start, fast middle, slow end."""
+    cam_a = DummyCamera((0, 0))
+    cam_b = DummyCamera((100, 0))
+    manager = CameraManager(cam_a)
+    manager.set_camera(cam_b, duration=1.0)
+
+    positions = []
+    for _ in range(60):
+        x, _ = manager.update(view, target_rect, 1 / 60)
+        positions.append(x)
+
+    # mid-section deltas should be larger than start/end deltas
+    start_delta = positions[5] - positions[0]
+    mid_delta = positions[32] - positions[27]
+    end_delta = positions[59] - positions[54]
+
+    assert mid_delta > start_delta
+    assert mid_delta > end_delta
+
+
+def test_no_transition_no_next_cam(view, target_rect):
+    cam = DummyCamera((50, 50))
+    manager = CameraManager(cam)
+    assert manager.next_cam is None
+    manager.update(view, target_rect, 0.016)
+    assert manager.next_cam is None
+
+
+def test_set_camera_resets_transition_state(view, target_rect):
+    cam_a = DummyCamera((0, 0))
+    cam_b = DummyCamera((100, 100))
+    manager = CameraManager(cam_a)
+    manager.set_camera(cam_b, duration=1.0)
+    assert manager.transition_time == 0
+    assert manager.start_pos is None
+    assert manager.transition_duration == 1.0
