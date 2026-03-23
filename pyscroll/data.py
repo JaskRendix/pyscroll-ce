@@ -75,6 +75,15 @@ class PyscrollDataAdapter(ABC):
     def visible_tile_layers(self) -> list[int]:
         """Return list of visible tile layer indices."""
 
+    @property
+    def tile_overdraw(self) -> tuple[int, int]:
+        """
+        Extra tiles to query beyond the visible rect to handle images
+        that are physically larger than tile_size (e.g. tall iso tiles).
+        Returns (extra_x, extra_y) in tiles.
+        """
+        return (0, 0)
+
     @abstractmethod
     def reload_data(self) -> None:
         """Reload underlying map data."""
@@ -330,6 +339,14 @@ class TiledMapData(PyscrollDataAdapter):
         super().__init__()
         self.tmx = tmx
         self.reload_animations()
+
+    @property
+    def tile_overdraw(self) -> tuple[int, int]:
+        max_h = max(
+            (ts.tileheight for ts in self.tmx.tilesets), default=self.tmx.tileheight
+        )
+        extra_y = max(0, (max_h - self.tmx.tileheight) // self.tmx.tileheight)
+        return (0, extra_y)
 
     def reload_data(self) -> None:
         self.tmx = pytmx.load_pygame(self.tmx.filename)

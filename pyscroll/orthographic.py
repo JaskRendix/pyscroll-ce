@@ -229,6 +229,13 @@ class BufferedRenderer:
         # Preserve backward compatibility: return a copy
         return self._previous_blit.copy()
 
+    def _expanded_tile_view(self) -> Rect:
+        ox, oy = self.data.tile_overdraw
+        if ox == 0 and oy == 0:
+            return self.viewport.tile_view
+        tv = self.viewport.tile_view
+        return Rect(tv.x - ox, tv.y - oy, tv.width + ox * 2, tv.height + oy * 2)
+
     def redraw_tiles(self, surface: Surface) -> None:
         buffer = self._buffer
         if buffer is None:
@@ -241,7 +248,7 @@ class BufferedRenderer:
         data = self.data
 
         tile_view = viewport.tile_view
-        tile_queue = data.get_tile_images_by_rect(tile_view)
+        tile_queue = data.get_tile_images_by_rect(self._expanded_tile_view())
 
         tile_renderer.clear_region(buffer)
         tile_renderer.flush_tile_queue(tile_queue, tile_view, buffer)
@@ -287,7 +294,7 @@ class BufferedRenderer:
         tile_view = viewport.tile_view
 
         # Process tile animations
-        tile_queue = data.process_animation_queue(tile_view)
+        tile_queue = data.process_animation_queue(self._expanded_tile_view())
         tile_renderer.flush_tile_queue(tile_queue, tile_view, buffer)
 
         anchored_view = viewport.anchored_view

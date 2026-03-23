@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from pygame.surface import Surface
 
@@ -57,6 +57,8 @@ class AnimationToken:
         "speed_multiplier",
         "ping_pong",
         "direction",
+        "on_complete",
+        "_completed",
     )
 
     def __init__(
@@ -68,6 +70,7 @@ class AnimationToken:
         speed_multiplier: float = 1.0,
         ping_pong: bool = False,
         random_jitter: float = 0.0,
+        on_complete: Callable[[AnimationToken], None] | None = None,
     ) -> None:
         """
         Initializes an AnimationToken instance with full feature set.
@@ -86,6 +89,8 @@ class AnimationToken:
         self.ping_pong = ping_pong
         self.done = False
         self.direction = 1
+        self.on_complete: Callable[[AnimationToken], None] | None = on_complete
+        self._completed: bool = False
 
         initial_frame = self.frames[0]
         combined_multiplier = (
@@ -117,6 +122,9 @@ class AnimationToken:
             elif is_at_start:
                 if not self.loop:
                     self.done = True
+                    if not self._completed and self.on_complete is not None:
+                        self._completed = True
+                        self.on_complete(self)
                     return self.frames[self.index]
                 self.direction = 1
 
@@ -124,6 +132,9 @@ class AnimationToken:
 
             if not self.loop and self.index == 0 and self.direction == -1:
                 self.done = True
+                if not self._completed and self.on_complete is not None:
+                    self._completed = True
+                    self.on_complete(self)
                 return self.frames[self.index]
 
         else:
@@ -132,6 +143,9 @@ class AnimationToken:
                     self.index = 0
                 else:
                     self.done = True
+                    if not self._completed and self.on_complete is not None:
+                        self._completed = True
+                        self.on_complete(self)
                     return self.frames[self.index]
             else:
                 self.index += 1
@@ -164,6 +178,27 @@ class AnimationToken:
                 break
 
         return self.frames[self.index]
+
+    def reset(self, current_time: float = 0.0) -> None:
+        """
+        Reset the animation to its initial state.
+        Allows a one-shot animation to be replayed.
+        """
+        self.index = 0
+        self.direction = 1
+        self.done = False
+        self._completed = False
+
+        initial_frame = self.frames[0]
+        combined_multiplier = (
+            self.speed_multiplier * initial_frame.frame_speed_multiplier
+        )
+        if combined_multiplier <= 0:
+            initial_duration = initial_frame.duration
+        else:
+            initial_duration = initial_frame.duration / combined_multiplier
+
+        self.next = initial_duration + current_time
 
     def __lt__(self, other: AnimationToken | float | int) -> bool:
         """

@@ -142,3 +142,110 @@ def test_update_no_infinite_loop(frames, positions):
     token = AnimationToken(positions, [tiny_frame], speed_multiplier=1000.0)
     token.update(current_time=1.0, elapsed_time=0.1)
     assert token.index == 0
+
+
+def test_on_complete_called_once(frames, positions):
+    callback = MagicMock()
+    token = AnimationToken(positions, frames, loop=False, on_complete=callback)
+    token.advance(0.5)
+    token.advance(1.0)  # done here
+    token.advance(1.0)  # already done, should not fire again
+    callback.assert_called_once_with(token)
+
+
+def test_on_complete_not_called_for_looping(frames, positions):
+    callback = MagicMock()
+    token = AnimationToken(positions, frames, loop=True, on_complete=callback)
+    for _ in range(10):
+        token.advance(0.5)
+    callback.assert_not_called()
+
+
+def test_on_complete_ping_pong_non_looping(frames, positions):
+    callback = MagicMock()
+    token = AnimationToken(
+        positions, frames, loop=False, ping_pong=True, on_complete=callback
+    )
+    token.advance(0.5)  # index -> 1
+    token.advance(1.0)  # direction reverses
+    token.advance(1.5)  # back to 0, done
+    callback.assert_called_once_with(token)
+
+
+def test_reset_clears_done_and_completed(frames, positions):
+    callback = MagicMock()
+    token = AnimationToken(positions, frames, loop=False, on_complete=callback)
+    token.advance(0.5)
+    token.advance(1.0)
+    assert token.done
+
+    token.reset(current_time=2.0)
+    assert not token.done
+    assert not token._completed
+    assert token.index == 0
+    assert token.next == frames[0].duration + 2.0
+
+
+def test_reset_allows_callback_to_fire_again(frames, positions):
+    callback = MagicMock()
+    token = AnimationToken(positions, frames, loop=False, on_complete=callback)
+    token.advance(0.5)
+    token.advance(1.0)
+    token.reset(current_time=0.0)
+    token.advance(0.5)
+    token.advance(1.0)
+    assert callback.call_count == 2
+
+
+def test_zero_speed_multiplier_raises(frames, positions):
+    with pytest.raises(ValueError):
+        AnimationToken(positions, frames, speed_multiplier=0.0)
+
+
+def test_negative_speed_multiplier_raises(frames, positions):
+    with pytest.raises(ValueError):
+        AnimationToken(positions, frames, speed_multiplier=-1.0)
+
+
+def test_single_frame_non_looping(positions):
+    surf = MagicMock()
+    single = [AnimationFrame(image=surf, duration=0.5)]
+    token = AnimationToken(positions, single, loop=False)
+    frame = token.advance(0.5)
+    assert token.done
+    assert frame == single[0]
+
+
+def test_single_frame_looping(positions):
+    surf = MagicMock()
+    single = [AnimationFrame(image=surf, duration=0.5)]
+    token = AnimationToken(positions, single, loop=True)
+    frame = token.advance(0.5)
+    assert not token.done
+    assert token.index == 0
+
+
+def test_advance_returns_last_frame_when_done(frames, positions):
+    token = AnimationToken(positions, frames, loop=False)
+    token.advance(0.5)
+    token.advance(1.0)
+    assert token.done
+    # further advances should keep returning last frame
+    result = token.advance(99.0)
+    assert result == frames[-1]
+
+
+def test_reset_preserves_positions(frames, positions):
+    token = AnimationToken(positions, frames, loop=False)
+    token.advance(0.5)
+    token.advance(1.0)
+    token.reset()
+    assert token.positions == positions
+
+
+def test_repr(frames, positions):
+    token = AnimationToken(positions, frames)
+    r = repr(token)
+    assert "AnimationToken" in r
+    assert "loop=" in r
+    assert "ping_pong=" in r
