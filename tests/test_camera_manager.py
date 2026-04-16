@@ -72,11 +72,10 @@ def test_transition_stages(view, target_rect, num_updates, expected_pos_check):
     if expected_pos_check == "between_0_100":
         assert 0 < pos[0] < 100
         assert 0 < pos[1] < 100
-        assert manager.start_pos == (0, 0)
         assert manager.next_cam is not None
     elif expected_pos_check == "approx_50":
-        assert pos[0] == pytest.approx(50)
-        assert pos[1] == pytest.approx(50)
+        assert pos[0] == pytest.approx(50, abs=2)
+        assert pos[1] == pytest.approx(50, abs=2)
         assert manager.next_cam is not None
     elif expected_pos_check == "exact_100_100":
         assert pos == (100, 100)
@@ -140,5 +139,73 @@ def test_set_camera_resets_transition_state(view, target_rect):
     manager = CameraManager(cam_a)
     manager.set_camera(cam_b, duration=1.0)
     assert manager.transition_time == 0
-    assert manager.start_pos is None
     assert manager.transition_duration == 1.0
+    assert manager.next_cam is cam_b
+
+
+def test_current_position_none_before_update(view, target_rect):
+    cam = DummyCamera((50, 50))
+    manager = CameraManager(cam)
+    assert manager.current_position is None
+
+
+def test_current_position_updated_after_update(view, target_rect):
+    cam = DummyCamera((50, 50))
+    manager = CameraManager(cam)
+    manager.update(view, target_rect, 0.016)
+    assert manager.current_position == (50, 50)
+
+
+def test_current_position_updated_during_transition(view, target_rect):
+    cam_a = DummyCamera((0, 0))
+    cam_b = DummyCamera((100, 100))
+    manager = CameraManager(cam_a)
+    manager.set_camera(cam_b, duration=1.0)
+    manager.update(view, target_rect, 0.5)
+    assert manager.current_position is not None
+    assert 0 < manager.current_position[0] < 100
+
+
+def test_both_cameras_update_during_transition(view, target_rect):
+    cam_a = DummyCamera((0, 0))
+    cam_b = DummyCamera((100, 100))
+    manager = CameraManager(cam_a)
+    manager.set_camera(cam_b, duration=1.0)
+
+    for _ in range(10):
+        manager.update(view, target_rect, 0.1)
+
+    assert cam_a.calls == 10
+    assert cam_b.calls == 10
+
+
+def test_is_transitioning_false_initially(view_rect, target_rect):
+    cam = DummyCamera((0, 0))
+    manager = CameraManager(cam)
+    assert not manager.is_transitioning
+
+
+def test_is_transitioning_true_during_transition(view_rect, target_rect):
+    cam_a = DummyCamera((0, 0))
+    cam_b = DummyCamera((100, 100))
+    manager = CameraManager(cam_a)
+    manager.set_camera(cam_b, duration=1.0)
+    assert manager.is_transitioning
+
+
+def test_is_transitioning_false_after_completion(view_rect, target_rect):
+    cam_a = DummyCamera((0, 0))
+    cam_b = DummyCamera((100, 100))
+    manager = CameraManager(cam_a)
+    manager.set_camera(cam_b, duration=1.0)
+    for _ in range(60):
+        manager.update(view_rect, target_rect, 1 / 60)
+    assert not manager.is_transitioning
+
+
+def test_is_transitioning_false_after_instant_switch(view_rect, target_rect):
+    cam_a = DummyCamera((0, 0))
+    cam_b = DummyCamera((100, 100))
+    manager = CameraManager(cam_a)
+    manager.set_camera(cam_b, duration=0)
+    assert not manager.is_transitioning

@@ -35,7 +35,8 @@ It is fully compatible with [pytmx](https://github.com/bitcraft/pytmx), allowing
 - Draw and scroll shapes  
 - Fast and lightweight footprint  
 - Performance is independent of map size  
-- Direct support for pytmx‑loaded maps from Tiled  
+- Direct support for pytmx‑loaded maps from Tiled
+- Camera system with smooth follow, zoom, bounds clamping, rails, cutscenes, and transitions
 
 ---
 
@@ -45,6 +46,22 @@ pyscroll‑ce includes a pygame sprite group that renders all sprites on the map
 
 This makes it easy to implement minimaps or chunky retro‑style graphics.
 
+### Available Cameras
+
+| Class | Description |
+|---|---|
+| `BasicCamera` | Simple smooth follow |
+| `FollowCamera` | Smooth follow with optional deadzone |
+| `PlatformerCamera` | Directional vertical deadzone for platformers |
+| `ZoomCamera` | Wraps any camera, adds smooth zoom |
+| `BoundsCamera` | Wraps any camera, clamps to world bounds |
+| `CutsceneCamera` | Autonomous movement along waypoints, linear or Catmull-Rom |
+| `SplitFollowCamera` | Follows midpoint of multiple targets, zooms with separation |
+| `RailCamera` | Constrained to a polyline rail |
+| `DebugFlyCamera` | Free movement via input, for development |
+
+Use `CameraManager` to smoothly transition between any two cameras with a configurable duration.
+
 ---
 
 ## Installation
@@ -52,7 +69,7 @@ This makes it easy to implement minimaps or chunky retro‑style graphics.
 Install from pip:
 
 ```bash
-pip install pyscroll-ce
+pip install pyscroll-ce # not yet published to PyPI
 ```
 
 Or install from source (inside the project folder):
@@ -77,11 +94,11 @@ The Quest demo shows how to draw maps with pytmx, render layers quickly, and han
 ---
 
 ## Example Use with pytmx
-
-```bash
+```python
 import pygame
 from pytmx.util_pygame import load_pygame
 import pyscroll
+from pyscroll.camera import FollowCamera
 
 class Sprite(pygame.sprite.Sprite):
     def __init__(self, surface) -> None:
@@ -103,7 +120,7 @@ class Game:
         # Create group with map
         self.group = pyscroll.PyscrollGroup(map_layer=map_layer)
 
-        # Camera is now external
+        # Camera
         self.camera = FollowCamera()
 
         # Add a sprite
@@ -112,10 +129,7 @@ class Game:
         self.group.add(self.hero)
 
     def update(self, dt: float) -> None:
-        # Update all sprites
         self.group.update(dt)
-
-        # Update camera and center the map on the hero
         new_center = self.camera.update(self.group.view, self.hero.rect, dt)
         self.group.center(new_center)
 

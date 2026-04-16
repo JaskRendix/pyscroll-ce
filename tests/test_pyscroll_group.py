@@ -140,3 +140,83 @@ def test_lostsprites_reset(group, map_layer, surface, sprite):
     group.draw(surface)
 
     assert group.lostsprites == []
+
+
+def test_draw_sprite_culled_outside_view(group, map_layer, surface, sprite):
+    sprite.rect = Rect(1000, 1000, 32, 32)
+    group.add(sprite)
+    map_layer.get_center_offset.return_value = (0, 0)
+    map_layer.view_rect = Rect(0, 0, 640, 480)
+    map_layer.draw.return_value = []
+
+    group.draw(surface)
+
+    # draw was called but with empty renderables
+    _, _, renderables = map_layer.draw.call_args[0]
+    assert renderables == []
+
+
+def test_draw_sprite_visible_in_view(group, map_layer, surface, sprite):
+    sprite.rect = Rect(10, 10, 32, 32)
+    group.add(sprite)
+    map_layer.get_center_offset.return_value = (0, 0)
+    map_layer.view_rect = Rect(0, 0, 640, 480)
+    map_layer.draw.return_value = [sprite.rect]
+
+    group.draw(surface)
+
+    _, _, renderables = map_layer.draw.call_args[0]
+    assert len(renderables) == 1
+
+
+def test_draw_multiple_sprites(group, map_layer, surface):
+    class SimpleSprite(Sprite):
+        def __init__(self, x: int):
+            super().__init__()
+            self.image = Surface((32, 32))
+            self.rect = Rect(x, 0, 32, 32)
+
+    sprites = [SimpleSprite(i * 50) for i in range(3)]
+    for spr in sprites:
+        group.add(spr)
+
+    map_layer.get_center_offset.return_value = (0, 0)
+    map_layer.view_rect = Rect(0, 0, 640, 480)
+    map_layer.draw.return_value = [spr.rect for spr in sprites]
+
+    group.draw(surface)
+
+    _, _, renderables = map_layer.draw.call_args[0]
+    assert len(renderables) == 3
+
+
+def test_center_returns_none(group, map_layer):
+    map_layer.center.return_value = (100, 100)
+    result = group.center((100, 100))
+    assert result is None  # documents that return value is intentionally discarded
+
+
+def test_draw_no_sprites(group, map_layer, surface):
+    map_layer.get_center_offset.return_value = (0, 0)
+    map_layer.view_rect = Rect(0, 0, 640, 480)
+    map_layer.draw.return_value = []
+
+    result = group.draw(surface)
+    assert result == []
+
+    _, _, renderables = map_layer.draw.call_args[0]
+    assert renderables == []
+
+
+def test_renderable_rect_has_offset_applied(group, map_layer, surface, sprite):
+    sprite.rect = Rect(10, 10, 32, 32)
+    group.add(sprite)
+    map_layer.get_center_offset.return_value = (50, 50)
+    map_layer.view_rect = Rect(0, 0, 640, 480)
+    map_layer.draw.return_value = [sprite.rect]
+
+    group.draw(surface)
+
+    _, _, renderables = map_layer.draw.call_args[0]
+    assert len(renderables) == 1
+    assert renderables[0].rect == Rect(60, 60, 32, 32)  # 10+50, 10+50
