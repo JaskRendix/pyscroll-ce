@@ -6,12 +6,15 @@ from typing import TYPE_CHECKING
 from pygame.rect import Rect
 from pygame.surface import Surface
 
-from pyscroll.common import ColorRGB, ColorRGBA, surface_clipping_context
+from pyscroll.animation_pipeline import AnimationPipeline
+from pyscroll.buffer_manager import BufferManager
+from pyscroll.common import ColorRGB, surface_clipping_context
 from pyscroll.data import PyscrollDataAdapter
 from pyscroll.group import Renderable
 from pyscroll.orthographic import BufferedRenderer, _default_scaler
 from pyscroll.quadtree import FastQuadTree
 from pyscroll.sprite_manager import IsometricSpriteRenderer, SpriteRendererProtocol
+from pyscroll.sprite_pipeline import SpritePipeline
 from pyscroll.tile_renderer import IsometricTileRenderer, TileRendererProtocol
 from pyscroll.viewport import IsometricViewport
 
@@ -41,6 +44,10 @@ class IsometricBufferedRenderer(BufferedRenderer):
         sprite_damage_height: int = 0,
         zoom: float = 1.0,
     ) -> None:
+        self._buffer_manager = BufferManager()
+        self._animation_pipeline = AnimationPipeline()
+        self._sprite_pipeline = SpritePipeline()
+
         viewport = IsometricViewport(data, size, zoom, clamp_camera)
         super().__init__(
             data=data,
@@ -114,9 +121,10 @@ class IsometricBufferedRenderer(BufferedRenderer):
         surfaces_offset = (-ox, -oy)
 
         with surface_clipping_context(surface, rect):
-            sprite_renderer.render_sprites(
-                surface,
-                surfaces_offset,
-                tile_view,
-                surfaces,
+            self._sprite_pipeline.apply(
+                sprite_renderer=sprite_renderer,
+                surface=surface,
+                offset=surfaces_offset,
+                tile_view=tile_view,
+                sprites=surfaces,
             )
