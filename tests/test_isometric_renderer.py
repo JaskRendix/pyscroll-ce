@@ -54,13 +54,14 @@ def renderer():
 
 
 def test_initialize_buffers(renderer):
-    assert renderer._buffer is not None
+    assert renderer.state.buffer is not None
     assert renderer._tile_view.width > 0
     assert renderer._tile_view.height > 0
 
 
 def test_redraw_tiles(renderer):
-    buf = renderer._buffer
+    buf = renderer.state.buffer
+    assert buf is not None
     renderer.redraw_tiles(buf)
     px = buf.get_at((10, 10))
     assert px != (0, 0, 0, 255)

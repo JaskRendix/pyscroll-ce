@@ -17,6 +17,7 @@ from pyscroll.common import (
     surface_clipping_context,
 )
 from pyscroll.quadtree import FastQuadTree
+from pyscroll.renderer_state import RendererState
 from pyscroll.scroll_strategies import FullRedrawStrategy, SmallScrollStrategy
 from pyscroll.sprite_manager import SpriteRenderer, SpriteRendererProtocol
 from pyscroll.sprite_pipeline import SpritePipeline
@@ -111,41 +112,49 @@ class BufferedRenderer:
         -----
         The renderer creates one or two internal buffers depending on zoom.
         """
+
+        if viewport is None:
+            self.viewport: ViewportBase = ViewPort(data, size, zoom, clamp_camera)
+        else:
+            self.viewport = viewport
+
+        # Renderer state (single source of truth)
+        self.state = RendererState(
+            buffer=None,
+            zoom_buffer=None,
+            tile_view=self.viewport.tile_view,
+            last_tile_view_size=self.viewport.tile_view.size,
+            previous_blit=Rect(0, 0, 0, 0),
+            redraw_cutoff=1,
+            anchored_view=self.viewport.anchored_view,
+        )
+
+        # Pipelines and buffer manager (NOT part of state)
         self._buffer_manager = BufferManager()
         self._animation_pipeline = AnimationPipeline()
         self._sprite_pipeline = SpritePipeline()
+
+        # Core fields
         self.data = data
         self.time_source = time_source
         self.scaling_function = scaling_function
         self.tall_sprites = tall_sprites
         self.sprite_damage_height = sprite_damage_height
 
-        self.viewport: ViewportBase
-        if viewport is None:
-            self.viewport = ViewPort(data, size, zoom, clamp_camera)
-        else:
-            self.viewport = viewport
+        self.tile_renderer = TileRenderer(self.data, colorkey, alpha)
 
-        self._previous_blit = Rect(0, 0, 0, 0)
-        self._redraw_cutoff: int = 1
+        # Sprite renderer created lazily when quadtree rebuilds
+        self.sprite_renderer: SpriteRendererProtocol | None = None
 
-        tile_view = self.viewport.tile_view
-        self._last_tile_view_size: tuple[int, int] = tile_view.size
-
-        self.tile_renderer: TileRendererProtocol = TileRenderer(
-            self.data, colorkey, alpha
-        )
-
-        self._buffer: Surface | None = None
-        self._zoom_buffer: Surface | None = None
-
+        # Initialize buffers
         self._initialize_buffers_from_viewport()
 
-        if self.tall_sprites != 0:
-            log.warning("using tall_sprites feature is not supported")
-
+        # Scroll strategies
         self._small_scroll = SmallScrollStrategy()
         self._full_redraw = FullRedrawStrategy()
+
+        # Pipelines ready
+        self.state.mark_pipelines_ready()
 
     @property
     def view_rect(self) -> Rect:
@@ -216,7 +225,7 @@ class BufferedRenderer:
         return self.viewport.translate_rects(rects)
 
     def reload(self) -> None:
-        buffer = self._buffer
+        buffer = self.state.buffer
         if buffer is None:
             return
 
@@ -232,13 +241,13 @@ class BufferedRenderer:
         if zoom == 1.0:
             self._render_map(surface, rect, surfaces)
         else:
-            zoom_buffer = self._zoom_buffer
+            zoom_buffer = self.state.zoom_buffer
             assert zoom_buffer is not None
             self._render_map(zoom_buffer, zoom_buffer.get_rect(), surfaces)
             self.scaling_function(zoom_buffer, rect.size, surface)
 
         # Preserve backward compatibility: return a copy
-        return self._previous_blit.copy()
+        return self.state.previous_blit.copy()
 
     def _expanded_tile_view(self) -> Rect:
         ox, oy = self.data.tile_overdraw
@@ -248,7 +257,7 @@ class BufferedRenderer:
         return Rect(tv.x - ox, tv.y - oy, tv.width + ox * 2, tv.height + oy * 2)
 
     def redraw_tiles(self, surface: Surface) -> None:
-        buffer = self._buffer
+        buffer = self.state.buffer
         if buffer is None:
             return
 
@@ -265,7 +274,7 @@ class BufferedRenderer:
         tile_renderer.flush_tile_queue(tile_queue, tile_view, buffer)
 
     def _handle_view_change(self, dx: int, dy: int, view_change: int) -> None:
-        buffer = self._buffer
+        buffer = self.state.buffer
         if buffer is None or view_change == 0:
             return
 
@@ -274,7 +283,7 @@ class BufferedRenderer:
         tile_renderer = self.tile_renderer
         data = self.data
 
-        if view_change <= self._redraw_cutoff:
+        if view_change <= self.state.redraw_cutoff:
             # Small scroll strategy
             self._small_scroll.apply(
                 dx=dx,
@@ -298,7 +307,7 @@ class BufferedRenderer:
     def _render_map(
         self, surface: Surface, rect: Rect, surfaces: list[Renderable]
     ) -> None:
-        buffer = self._buffer
+        buffer = self.state.buffer
         if buffer is None:
             return
 
@@ -320,7 +329,7 @@ class BufferedRenderer:
         anchored_view = viewport.anchored_view
         if not anchored_view:
             # Clear the previous blit region on the target surface
-            tile_renderer.clear_region(surface, self._previous_blit)
+            tile_renderer.clear_region(surface, self.state.previous_blit)
 
         # Compute offsets once
         vx = viewport.x_offset
@@ -333,9 +342,10 @@ class BufferedRenderer:
         offset = (ox, oy)
 
         with surface_clipping_context(surface, rect):
-            self._previous_blit = surface.blit(buffer, offset)
+            self.state.set_previous_blit(surface.blit(buffer, offset))
 
             if surfaces:
+                assert self.sprite_renderer is not None
                 surfaces_offset = (-ox, -oy)
                 self._sprite_pipeline.apply(
                     sprite_renderer=self.sprite_renderer,
@@ -368,13 +378,11 @@ class BufferedRenderer:
             data=data,
         )
 
-        self._buffer = buffer
-        self._zoom_buffer = zoom_buffer
+        assert buffer is not None
+        self.state.set_buffers(buffer, zoom_buffer)
 
         # Rebuild quadtree only when tile_view dimensions change
-        if tile_view_size != self._last_tile_view_size:
-            self._last_tile_view_size = tile_view_size
-
+        if self.state.update_tile_view(tile_view):
             self.sprite_renderer = bm.rebuild_quadtree(
                 tile_view_size=tile_view_size,
                 tile_size=data.tile_size,

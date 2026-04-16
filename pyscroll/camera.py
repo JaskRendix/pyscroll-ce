@@ -370,11 +370,11 @@ class SplitFollowCamera(BaseCamera):
         self.zoom: float = max_zoom
         self.targets: list[Rect] = []
 
-    def _get_midpoint(self) -> tuple[float, float]:
+    def _get_midpoint(self) -> tuple[int, int]:
         """Return the midpoint of all targets."""
         tx = sum(r.centerx for r in self.targets) / len(self.targets)
         ty = sum(r.centery for r in self.targets) / len(self.targets)
-        return tx, ty
+        return int(tx), int(ty)
 
     def _get_max_separation(self) -> float:
         """Return the maximum distance between any two targets."""

@@ -44,11 +44,8 @@ class IsometricBufferedRenderer(BufferedRenderer):
         sprite_damage_height: int = 0,
         zoom: float = 1.0,
     ) -> None:
-        self._buffer_manager = BufferManager()
-        self._animation_pipeline = AnimationPipeline()
-        self._sprite_pipeline = SpritePipeline()
-
         viewport = IsometricViewport(data, size, zoom, clamp_camera)
+
         super().__init__(
             data=data,
             size=size,
@@ -62,8 +59,15 @@ class IsometricBufferedRenderer(BufferedRenderer):
             zoom=zoom,
             viewport=viewport,
         )
+
+        # Override pipelines/buffer manager if you really need custom ones
+        self._buffer_manager = BufferManager()
+        self._animation_pipeline = AnimationPipeline()
+        self._sprite_pipeline = SpritePipeline()
+
         self._last_offset: tuple[int, int] | None = None
-        self._redraw_cutoff: int = 0
+        # For iso we force full redraw on scroll
+        self.state.redraw_cutoff = 0
 
     def _create_tile_renderer(
         self, colorkey: ColorRGB | None = None, alpha: bool = False
@@ -73,6 +77,7 @@ class IsometricBufferedRenderer(BufferedRenderer):
     def _create_sprite_renderer(
         self, data: PyscrollDataAdapter, layer_quadtree: FastQuadTree
     ) -> SpriteRendererProtocol:
+        # IsometricSpriteRenderer does its own depth sorting; no quadtree needed
         return IsometricSpriteRenderer()
 
     def redraw_tiles(self, surface: Surface) -> None:
@@ -84,12 +89,12 @@ class IsometricBufferedRenderer(BufferedRenderer):
         self, surface: Surface, rect: Rect, surfaces: list[Renderable]
     ) -> None:
         """Render isometric tiles + sprites to the target surface."""
-        if self._buffer is None:
+        buffer = self.state.buffer
+        if buffer is None:
             return
 
         viewport = self.viewport
         tile_renderer = self.tile_renderer
-        sprite_renderer = self.sprite_renderer
         tile_view = viewport.tile_view
 
         # Compute offsets once
@@ -99,18 +104,18 @@ class IsometricBufferedRenderer(BufferedRenderer):
         oy = -vy + rect.top
         offset = (ox, oy)
 
-        # Only clear region if offset changed
+        # Only clear region if offset changed (anchored view)
         if viewport.anchored_view:
             current_offset = (vx, vy)
             if current_offset != self._last_offset:
-                if self._previous_blit:
-                    tile_renderer.clear_region(surface, self._previous_blit)
+                if self.state.previous_blit:
+                    tile_renderer.clear_region(surface, self.state.previous_blit)
                 self._last_offset = current_offset
 
         # Blit buffer BEFORE clipping context (faster)
-        self._previous_blit = surface.blit(self._buffer, offset)
+        self.state.set_previous_blit(surface.blit(buffer, offset))
 
-        # Clip only for sprite rendering
+        # No sprites to render
         if not surfaces:
             return
 
@@ -121,8 +126,9 @@ class IsometricBufferedRenderer(BufferedRenderer):
         surfaces_offset = (-ox, -oy)
 
         with surface_clipping_context(surface, rect):
+            assert self.sprite_renderer is not None
             self._sprite_pipeline.apply(
-                sprite_renderer=sprite_renderer,
+                sprite_renderer=self.sprite_renderer,
                 surface=surface,
                 offset=surfaces_offset,
                 tile_view=tile_view,
