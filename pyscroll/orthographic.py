@@ -16,6 +16,7 @@ from pyscroll.common import (
     surface_clipping_context,
 )
 from pyscroll.quadtree import FastQuadTree
+from pyscroll.scroll_strategies import FullRedrawStrategy, SmallScrollStrategy
 from pyscroll.sprite_manager import SpriteRenderer, SpriteRendererProtocol
 from pyscroll.tile_renderer import TileRenderer, TileRendererProtocol
 from pyscroll.viewport import ViewPort, ViewportBase
@@ -135,6 +136,9 @@ class BufferedRenderer:
 
         if self.tall_sprites != 0:
             log.warning("using tall_sprites feature is not supported")
+
+        self._small_scroll = SmallScrollStrategy()
+        self._full_redraw = FullRedrawStrategy()
 
     @property
     def view_rect(self) -> Rect:
@@ -258,27 +262,31 @@ class BufferedRenderer:
         if buffer is None or view_change == 0:
             return
 
-        data = self.data
-        tile_renderer = self.tile_renderer
         viewport = self.viewport
         tile_view = viewport.tile_view
-        tw, th = data.tile_size
+        tile_renderer = self.tile_renderer
+        data = self.data
 
         if view_change <= self._redraw_cutoff:
-            # Small scroll – use buffer scroll
-            buffer.scroll(-dx * tw, -dy * th)
-            tile_view.move_ip(dx, dy)
-
-            queue_edge_tiles = tile_renderer.queue_edge_tiles
-            flush = tile_renderer.flush_tile_queue
-
-            tile_queue = queue_edge_tiles(tile_view, dx, dy, buffer)
-            flush(tile_queue, tile_view, buffer)
+            # Small scroll strategy
+            self._small_scroll.apply(
+                dx=dx,
+                dy=dy,
+                buffer=buffer,
+                tile_view=tile_view,
+                tile_renderer=tile_renderer,
+                tile_size=data.tile_size,
+            )
         else:
-            # Large scroll – full redraw
+            # Full redraw strategy
             log.debug("scrolling too quickly. redraw forced")
-            tile_view.move_ip(dx, dy)
-            self.redraw_tiles(buffer)
+            self._full_redraw.apply(
+                dx=dx,
+                dy=dy,
+                buffer=buffer,
+                tile_view=tile_view,
+                redraw_tiles=self.redraw_tiles,
+            )
 
     def _render_map(
         self, surface: Surface, rect: Rect, surfaces: list[Renderable]
