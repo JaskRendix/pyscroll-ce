@@ -23,6 +23,7 @@ from pyscroll.sprite_manager import SpriteRenderer, SpriteRendererProtocol
 from pyscroll.sprite_pipeline import SpritePipeline
 from pyscroll.tile_renderer import TileRenderer, TileRendererProtocol
 from pyscroll.viewport import ViewPort, ViewportBase
+from pyscroll.viewport_pipeline import ViewportPipeline
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -117,6 +118,8 @@ class BufferedRenderer:
             self.viewport: ViewportBase = ViewPort(data, size, zoom, clamp_camera)
         else:
             self.viewport = viewport
+
+        self.viewport_pipeline = ViewportPipeline(self.viewport)
 
         # Renderer state (single source of truth)
         self.state = RendererState(
@@ -213,16 +216,16 @@ class BufferedRenderer:
         return self.viewport.get_center_offset()
 
     def translate_point(self, point: Vector2D) -> tuple[int, int]:
-        return self.viewport.translate_point(point)
+        return self.viewport_pipeline.translate_point(point)
 
     def translate_rect(self, rect: RectLike) -> Rect:
-        return self.viewport.translate_rect(rect)
+        return self.viewport_pipeline.translate_rect(rect)
 
     def translate_points(self, points: list[Vector2D]) -> list[tuple[int, int]]:
-        return self.viewport.translate_points(points)
+        return self.viewport_pipeline.translate_points(points)
 
     def translate_rects(self, rects: list[Rect]) -> list[Rect]:
-        return self.viewport.translate_rects(rects)
+        return self.viewport_pipeline.translate_rects(rects)
 
     def reload(self) -> None:
         buffer = self.state.buffer
@@ -250,11 +253,7 @@ class BufferedRenderer:
         return self.state.previous_blit.copy()
 
     def _expanded_tile_view(self) -> Rect:
-        ox, oy = self.data.tile_overdraw
-        if ox == 0 and oy == 0:
-            return self.viewport.tile_view
-        tv = self.viewport.tile_view
-        return Rect(tv.x - ox, tv.y - oy, tv.width + ox * 2, tv.height + oy * 2)
+        return self.viewport_pipeline.expanded_tile_view(self.data.tile_overdraw)
 
     def redraw_tiles(self, surface: Surface) -> None:
         buffer = self.state.buffer
@@ -264,10 +263,9 @@ class BufferedRenderer:
         log.debug("pyscroll buffer redraw")
 
         tile_renderer = self.tile_renderer
-        viewport = self.viewport
         data = self.data
 
-        tile_view = viewport.tile_view
+        tile_view = self.viewport.tile_view
         tile_queue = data.get_tile_images_by_rect(self._expanded_tile_view())
 
         tile_renderer.clear_region(buffer)
@@ -332,13 +330,7 @@ class BufferedRenderer:
             tile_renderer.clear_region(surface, self.state.previous_blit)
 
         # Compute offsets once
-        vx = viewport.x_offset
-        vy = viewport.y_offset
-        rect_left = rect.left
-        rect_top = rect.top
-
-        ox = -vx + rect_left
-        oy = -vy + rect_top
+        ox, oy = self.viewport_pipeline.compute_offset(rect)
         offset = (ox, oy)
 
         with surface_clipping_context(surface, rect):
