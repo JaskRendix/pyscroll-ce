@@ -62,3 +62,118 @@ def test_get_animations(proc):
     gid, frames = animations[0]
     assert gid == proc._GID_WATER
     assert all(isinstance(f[0], int) and isinstance(f[1], int) for f in frames)
+
+
+def test_reload_animations_populates_structures(proc):
+    proc.reload_animations()
+    assert proc._tracked_gids == {proc._GID_WATER}
+    assert len(proc._animation_map) == 1
+    assert len(proc._animation_queue) == 1
+
+
+def test_process_animation_queue_changes_frames(proc):
+    proc.reload_animations()
+
+    # Touch a WATER tile so it becomes tracked for animation
+    # (1,0) is WATER because 1+0 = 1 (odd)
+    proc.get_tile_image(1, 0, 0)
+
+    # Get the real animation token
+    token = next(iter(proc._animation_queue))
+
+    # Force the animation to trigger immediately
+    token.next = 0
+
+    tile_view = pygame.Rect(0, 0, 40, 30)
+    updates = proc.process_animation_queue(tile_view)
+
+    # Should produce at least one updated tile
+    assert updates
+
+    x, y, layer, surf = updates[0]
+
+    # The returned surface must be one of the animation frames
+    expected_frames = {frame.image for frame in token.frames}
+
+    assert surf in expected_frames
+
+
+def test_get_tile_image_animated(proc):
+    proc.reload_animations()
+    # Force animation tracking
+    proc._get_tile_gid = lambda x, y, l: proc._GID_WATER
+
+    img = proc.get_tile_image(0, 0, 0)
+    assert isinstance(img, Surface)
+
+
+def test_surfaces_are_unique(proc):
+    assert proc._surfaces[proc._GID_GRASS] is not proc._surfaces[proc._GID_WATER]
+
+
+def test_convert_surfaces_noop(proc):
+    surf = Surface((32, 32))
+    proc.convert_surfaces(surf, alpha=True)  # should not crash
+
+
+def test_process_animation_queue_second_cycle(proc):
+    proc.reload_animations()
+
+    # Touch a WATER tile so it becomes tracked for animation
+    proc.get_tile_image(1, 0, 0)  # (1,0) is WATER
+
+    # Get the real animation token
+    token = next(iter(proc._animation_queue))
+
+    # Force animation to trigger immediately
+    token.next = 0
+
+    tile_view = pygame.Rect(0, 0, 40, 30)
+
+    # First update
+    updates1 = proc.process_animation_queue(tile_view)
+    assert updates1
+    _, _, _, surf1 = updates1[0]
+
+    # Force next frame to be ready
+    token.next = 0
+
+    # Second update
+    updates2 = proc.process_animation_queue(tile_view)
+    assert updates2
+    _, _, _, surf2 = updates2[0]
+
+    # Both frames must be valid animation frames
+    expected_frames = {frame.image for frame in token.frames}
+    assert surf1 in expected_frames
+    assert surf2 in expected_frames
+
+
+def test_process_animation_queue_stress(proc):
+    proc.reload_animations()
+
+    # Touch a WATER tile so it becomes tracked for animation
+    # (1,0) is WATER because 1+0 = 1 (odd)
+    proc.get_tile_image(1, 0, 0)
+
+    token = next(iter(proc._animation_queue))
+    tile_view = pygame.Rect(0, 0, 40, 30)
+
+    # Collect all possible animation frame surfaces
+    expected_frames = {frame.image for frame in token.frames}
+
+    # Run many cycles to ensure stability
+    for _ in range(50):
+        # Force animation to be ready
+        token.next = 0
+
+        updates = proc.process_animation_queue(tile_view)
+        assert updates, "Animation stopped producing updates during stress test"
+
+        x, y, layer, surf = updates[0]
+
+        # Returned frame must always be valid
+        assert surf in expected_frames
+
+        # Position must remain tracked
+        assert (1, 0, 0) in token.positions

@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from unittest.mock import MagicMock
 
 import pytest
 from pygame.rect import Rect
@@ -129,3 +130,75 @@ def test_is_on_map(adapter, x, y, expected):
 )
 def test_pixel_to_tile(adapter, px, py, expected):
     assert adapter.pixel_to_tile(px, py) == expected
+
+
+def test_get_tile_image_animated_tile(adapter):
+    surf = Surface((32, 32))
+    adapter._animated_tile[(1, 2, 0)] = surf
+    assert adapter.get_tile_image(1, 2, 0) is surf
+
+
+def test_get_tile_image_animation_map_initial_frame(adapter):
+    surf = Surface((32, 32))
+    token = MagicMock()
+    token.frames = [MagicMock(image=surf)]
+    token.positions = set()
+    adapter._animation_map = {123: token}
+    adapter._get_tile_gid = lambda x, y, l: 123
+
+    img = adapter.get_tile_image(0, 0, 0)
+    assert img is surf
+    assert (0, 0, 0) in token.positions
+
+
+def test_process_animation_queue_updates_tiles(adapter):
+    surf1 = Surface((32, 32))
+    surf2 = Surface((32, 32))
+
+    token = MagicMock()
+    token.next = 0
+    token.positions = {(1, 1, 0)}
+
+    # After first advance, next should be > last_time to break the loop
+    def advance_mock(t):
+        token.next = t + 999  # ensure loop stops
+        return MagicMock(image=surf2)
+
+    token.advance.side_effect = advance_mock
+
+    adapter._animation_queue = [token]
+    adapter._last_time = 1
+    adapter._get_tile_image = lambda x, y, l: surf1
+
+    tile_view = Rect(0, 0, 10, 10)
+    updates = adapter.process_animation_queue(tile_view)
+
+    assert updates == [(1, 1, 0, surf2)]
+
+
+def test_get_tile_images_by_rect_iteration_order(adapter):
+    calls = []
+    adapter._get_tile_image = lambda x, y, l: calls.append((x, y)) or None
+
+    rect = Rect(0, 0, 1, 1)
+    list(adapter.get_tile_images_by_rect(rect))
+
+    assert calls == [(0, 0)]
+
+
+def test_update_time_does_not_advance_when_paused(adapter):
+    adapter.pause_animations()
+    before = adapter._last_time
+    adapter._update_time()
+    assert adapter._last_time == before
+
+
+def test_set_animation_speed_multiplier_applies(adapter):
+    token1 = MagicMock()
+    token2 = MagicMock()
+    adapter._animation_queue = [token1, token2]
+
+    adapter.set_animation_speed_multiplier(2.0)
+
+    assert token1.speed_multiplier == 2.0
+    assert token2.speed_multiplier == 2.0
