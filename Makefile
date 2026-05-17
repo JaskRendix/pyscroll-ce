@@ -4,7 +4,7 @@ PACKAGE_NAME := pyscroll
 
 benchmark:
 	@echo "Running all benchmarks in benchmark/"
-	@for file in benchmark/*benchmark*.py; do \
+	@for file in benchmark/*.py; do \
 		echo "----------------------------------------"; \
 		echo "Running $$file"; \
 		python $$file; \
