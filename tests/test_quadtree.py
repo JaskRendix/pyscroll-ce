@@ -107,3 +107,52 @@ def test_hit_with_non_rect_object():
     qt = FastQuadTree([dummy])
     collisions = qt.hit(Rect(0, 0, 10, 10))
     assert (0, 0, 10, 10) in collisions
+
+
+def test_split_line_rects_stay_in_parent():
+    rects = [
+        Rect(0, 0, 10, 10),  # NW
+        Rect(10, 0, 10, 10),  # touches vertical split
+        Rect(0, 10, 10, 10),  # touches horizontal split
+        Rect(10, 10, 10, 10),  # touches both
+    ]
+    qt = FastQuadTree(rects)
+    assert len(qt.items) >= 1  # at least the edge-touching rects stay in parent
+
+
+@pytest.mark.parametrize(
+    "rect",
+    [
+        Rect(5, 0, 10, 20),  # spans NW + NE
+        Rect(0, 5, 20, 10),  # spans NW + SW
+        Rect(5, 5, 20, 20),  # spans all four
+    ],
+)
+def test_partial_quadrant_overlap(rect):
+    qt = FastQuadTree([rect])
+    assert rect in list(qt)
+
+
+def test_query_spans_multiple_quadrants():
+    rects = [Rect(0, 0, 10, 10), Rect(20, 20, 10, 10)]
+    qt = FastQuadTree(rects)
+    hits = qt.hit(Rect(5, 5, 30, 30))
+    assert len(hits) == 2
+
+
+def test_bucket_cutoff():
+    rects = [Rect(i, i, 2, 2) for i in range(8)]
+    qt = FastQuadTree(rects, depth=10)
+    assert qt.items == rects  # no subdivision
+
+
+def test_large_uniform_distribution():
+    rects = [Rect(i * 10, 0, 5, 5) for i in range(200)]
+    qt = FastQuadTree(rects)
+    assert len(list(qt)) == 200
+
+
+def test_hit_tuple_format():
+    qt = FastQuadTree([Rect(0, 0, 10, 10)])
+    hits = qt.hit(Rect(0, 0, 10, 10))
+    assert hits == {(0, 0, 10, 10)}
