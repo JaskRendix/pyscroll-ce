@@ -28,15 +28,12 @@ def benchmark_group(n_sprites=5000, iterations=200):
     group = PyscrollGroup(map_layer)
     surface = Surface((800, 600))
 
-    # Populate group
     for i in range(n_sprites):
         group.add(make_sprite(i % 800, (i * 3) % 600))
 
-    # Warmup
     for _ in range(20):
         group.draw(surface)
 
-    # Benchmark
     start = time.perf_counter()
     for _ in range(iterations):
         group.draw(surface)
@@ -63,7 +60,6 @@ def benchmark_culling(n_sprites=5000):
     group = PyscrollGroup(map_layer)
     surface = Surface((800, 600))
 
-    # 95% off-screen
     for i in range(n_sprites):
         x = 2000 if i % 20 else i % 800
         y = 2000 if i % 20 else (i * 3) % 600
@@ -74,7 +70,7 @@ def benchmark_culling(n_sprites=5000):
         group.draw(surface)
     end = time.perf_counter()
 
-    print("Culling benchmark:", end - start)
+    print(f"Culling benchmark: {end - start}")
 
 
 def benchmark_renderable_creation(n=200000):
@@ -105,7 +101,7 @@ def benchmark_spritedict(n=5000):
 
 
 if __name__ == "__main__":
-    print("=== PyscrollGroup Benchmark ===")
+    print("PyscrollGroup Benchmark")
     benchmark_group()
     benchmark_culling()
     benchmark_renderable_creation()
