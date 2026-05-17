@@ -11,7 +11,6 @@ import time
 from abc import ABC, abstractmethod
 from contextlib import suppress
 from heapq import heappop, heappush
-from itertools import product
 from typing import TYPE_CHECKING, Any
 
 import pygame
