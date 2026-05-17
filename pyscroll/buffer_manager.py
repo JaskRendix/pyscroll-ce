@@ -33,10 +33,9 @@ class BufferManager:
         tile_size: tuple[int, int],
         map_rect: Rect,
     ) -> tuple[int, int]:
-        # Base buffer size on map_rect, override if tile_view is non-empty
-        if tile_view.size != (0, 0):
+        if tile_view.width > 0 and tile_view.height > 0:
             tw, th = tile_size
-            return (tile_view.width * tw, tile_view.height * th)
+            return tile_view.width * tw, tile_view.height * th
         return map_rect.size
 
     def create_buffers(
@@ -46,16 +45,8 @@ class BufferManager:
         clear_color: tuple[int, int, int] | tuple[int, int, int, int] | None,
         data: PyscrollDataAdapter,
     ) -> tuple[Surface | None, Surface | None]:
-        # Determine flags and fill behavior
-        if clear_color is None:
-            flags = 0
-            fill_color = None
-        elif clear_color == self._rgba_clear_color:
-            flags = pygame.SRCALPHA
-            fill_color = None
-        else:
-            flags = pygame.RLEACCEL
-            fill_color = clear_color
+        flags = pygame.SRCALPHA if clear_color == self._rgba_clear_color else 0
+        fill_color = clear_color if clear_color != self._rgba_clear_color else None
 
         requires_zoom = view_size != buffer_size
 
@@ -70,7 +61,6 @@ class BufferManager:
             buffer.set_colorkey(fill_color)
             buffer.fill(fill_color)
 
-        # Convert surfaces only for alpha clear color (unchanged behavior)
         if clear_color == self._rgba_clear_color:
             data.convert_surfaces(buffer, True)
 
@@ -88,8 +78,9 @@ class BufferManager:
         tw, th = tile_size
         width, height = tile_view_size
 
+        rect_init = pygame.Rect
         rects = [
-            pygame.Rect((x * tw, y * th), (tw, th))
+            rect_init(x * tw, y * th, tw, th)
             for y in range(height)
             for x in range(width)
         ]
