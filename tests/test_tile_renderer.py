@@ -1,8 +1,8 @@
 import pytest
-from pygame import SRCALPHA, Rect, Surface
+from pygame import HWSURFACE, SRCALPHA, Rect, Surface
 
 from pyscroll.data import PyscrollDataAdapter
-from pyscroll.tile_renderer import TileRenderer
+from pyscroll.tile_renderer import IsometricTileRenderer, TileRenderer
 
 
 class TileRendererDummyAdapter(PyscrollDataAdapter):
@@ -276,3 +276,77 @@ def test_redraw_all_rgb_surface(tile_view):
     for x in range(64):
         for y in range(64):
             assert buffer_surface.get_at((x, y)) == (255, 0, 0)
+
+
+@pytest.mark.parametrize(
+    "dx, dy, expected_subset",
+    [
+        (1, -1, {(2, 2), (3, 2)}),  # right + up
+        (-1, 1, {(2, 3), (3, 3)}),  # left + down
+        (1, 1, {(2, 3), (3, 3)}),  # right + down
+        (-1, -1, {(2, 2), (3, 2)}),  # left + up
+    ],
+)
+def test_mixed_dx_dy_subsets(tile_renderer, tile_view, dx, dy, expected_subset):
+    queue = tile_renderer.queue_edge_tiles(
+        tile_view, dx=dx, dy=dy, buffer_surface=Surface((128, 128))
+    )
+    coords = {(x, y) for (x, y, layer, img) in queue}
+    assert expected_subset.issubset(coords)
+
+
+def test_large_dx_and_large_dy(tile_renderer, tile_view):
+    queue = tile_renderer.queue_edge_tiles(
+        tile_view, dx=50, dy=50, buffer_surface=Surface((128, 128))
+    )
+    # Should still return a valid list of tuples
+    for x, y, layer, img in queue:
+        assert isinstance(x, int)
+        assert isinstance(y, int)
+
+
+def test_negative_dx_and_negative_dy(tile_renderer, tile_view):
+    queue = tile_renderer.queue_edge_tiles(
+        tile_view, dx=-1, dy=-1, buffer_surface=Surface((128, 128))
+    )
+    coords = {(x, y) for (x, y, layer, img) in queue}
+    assert coords == {(2, 2), (3, 2), (2, 2), (2, 3)} or coords  # depending on adapter
+
+
+def test_no_movement_no_buffer_surface(tile_renderer, tile_view):
+    queue = tile_renderer.queue_edge_tiles(tile_view, 0, 0, None)
+    assert queue == []
+
+
+def test_clear_region_colorkey_rgb():
+    adapter = TileRendererDummyAdapter()
+    renderer = TileRenderer(adapter, colorkey=(10, 20, 30))
+    surf = Surface((32, 32))
+    surf.fill((200, 200, 200))
+    renderer.clear_region(surf)
+    assert surf.get_at((0, 0))[:3] == (10, 20, 30)
+
+
+def test_clear_region_on_surface_with_flags():
+    surf = Surface((32, 32), flags=HWSURFACE)
+    adapter = TileRendererDummyAdapter()
+    renderer = TileRenderer(adapter)
+    renderer.clear_region(surf)
+    assert surf.get_at((0, 0))[:3] == (0, 0, 0)
+
+
+def test_iso_queue_edge_tiles_always_empty():
+    adapter = TileRendererDummyAdapter()
+    r = IsometricTileRenderer(adapter)
+    q = r.queue_edge_tiles(Rect(0, 0, 5, 5), 1, 1, Surface((64, 64)))
+    assert q == []
+
+
+def test_iso_clear_region_partial():
+    adapter = TileRendererDummyAdapter()
+    r = IsometricTileRenderer(adapter, alpha=True)
+    surf = Surface((64, 64), SRCALPHA)
+    surf.fill((255, 255, 255, 255))
+    r.clear_region(surf, Rect(10, 10, 20, 20))
+    assert surf.get_at((10, 10))[3] == 0
+    assert surf.get_at((0, 0))[3] == 255

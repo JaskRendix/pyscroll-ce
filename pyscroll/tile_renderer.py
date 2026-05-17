@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Protocol
 
+import pygame
+
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
@@ -47,7 +49,11 @@ class TileRendererProtocol(Protocol):
         buffer_surface: Surface,
     ) -> None: ...
 
-    def clear_region(self, surface: Surface, area: RectLike | None = None) -> None: ...
+    def clear_region(
+        self,
+        surface: Surface,
+        area: RectLike | None = None,
+    ) -> None: ...
 
 
 class TileRenderer(TileRendererProtocol):
@@ -58,7 +64,6 @@ class TileRenderer(TileRendererProtocol):
         alpha: bool = False,
     ):
         self.data = data
-
         self._clear_color: ColorRGB | ColorRGBA | None
 
         if colorkey and alpha:
@@ -79,19 +84,19 @@ class TileRenderer(TileRendererProtocol):
         return self._clear_color
 
     def queue_edge_tiles(
-        self, tile_view: Rect, dx: int, dy: int, buffer_surface: Surface
+        self,
+        tile_view: Rect,
+        dx: int,
+        dy: int,
+        buffer_surface: Surface,
     ) -> list[tuple[int, int, int, Surface]]:
-        # Early exit: no movement
         if dx == 0 and dy == 0:
             return []
 
         tw, th = self.data.tile_size
-        v_left = tile_view.left
-        v_top = tile_view.top
-        v_right = tile_view.right
-        v_bottom = tile_view.bottom
-        v_width = tile_view.width
-        v_height = tile_view.height
+        v_left, v_top = tile_view.left, tile_view.top
+        v_right, v_bottom = tile_view.right, tile_view.bottom
+        v_width, v_height = tile_view.width, tile_view.height
 
         get_images = self.data.get_tile_images_by_rect
         clear_region = self.clear_region
@@ -103,42 +108,35 @@ class TileRenderer(TileRendererProtocol):
             rect = (v_right - 1, v_top, dx, v_height)
             queue.extend(get_images(rect))
             if buffer_surface is not None:
-                px = (rect[0] - v_left) * tw
-                py = 0
-                pw = rect[2] * tw
-                ph = v_height * th
-                clear_region(buffer_surface, (px, py, pw, ph))
+                clear_region(
+                    buffer_surface,
+                    ((rect[0] - v_left) * tw, 0, rect[2] * tw, v_height * th),
+                )
 
         elif dx < 0:
             rect = (v_left, v_top, -dx, v_height)
             queue.extend(get_images(rect))
             if buffer_surface is not None:
-                px = 0
-                py = 0
-                pw = rect[2] * tw
-                ph = v_height * th
-                clear_region(buffer_surface, (px, py, pw, ph))
+                clear_region(buffer_surface, (0, 0, rect[2] * tw, v_height * th))
 
         # Vertical movement
         if dy > 0:
-            rect = (v_left, v_bottom - 1, v_width, dy)
+            rect = (v_left, v_bottom - 1, v_width, 1)
             queue.extend(get_images(rect))
             if buffer_surface is not None:
-                px = 0
-                py = (rect[1] - v_top) * th
-                pw = v_width * tw
-                ph = rect[3] * th
-                clear_region(buffer_surface, (px, py, pw, ph))
+                clear_region(
+                    buffer_surface,
+                    (0, (rect[1] - v_top) * th, v_width * tw, rect[3] * th),
+                )
 
         elif dy < 0:
-            rect = (v_left, v_top, v_width, -dy)
+            rect = (v_left, v_top, v_width, 1)
             queue.extend(get_images(rect))
             if buffer_surface is not None:
-                px = 0
-                py = 0
-                pw = v_width * tw
-                ph = rect[3] * th
-                clear_region(buffer_surface, (px, py, pw, ph))
+                clear_region(
+                    buffer_surface,
+                    (0, 0, v_width * tw, rect[3] * th),
+                )
 
         return queue
 
@@ -154,23 +152,33 @@ class TileRenderer(TileRendererProtocol):
 
         self.data.prepare_tiles(tile_view)
 
-        # Precompute generator outside the C call
-        blit_items = (
+        blit_items = [
             (image, (x * tw - ltw, y * th - tth)) for x, y, layer, image in tile_queue
-        )
+        ]
 
         buffer_surface.blits(blit_items, doreturn=False)
 
-    def redraw_all(self, tile_view: Rect, buffer_surface: Surface) -> None:
+    def redraw_all(
+        self,
+        tile_view: Rect,
+        buffer_surface: Surface,
+    ) -> None:
         tile_queue = self.data.get_tile_images_by_rect(tile_view)
         self.flush_tile_queue(tile_queue, tile_view, buffer_surface)
 
-    def clear_region(self, surface: Surface, area: RectLike | None = None) -> None:
+    def clear_region(
+        self,
+        surface: Surface,
+        area: RectLike | None = None,
+    ) -> None:
         if self._clear_color is not None:
             clear_color = self._clear_color
         else:
-            has_alpha = surface.get_masks()[3] != 0
-            clear_color = self._rgba_clear_color if has_alpha else self._rgb_clear_color
+            clear_color = (
+                self._rgba_clear_color
+                if (surface.get_flags() & pygame.SRCALPHA)
+                else self._rgb_clear_color
+            )
 
         surface.fill(clear_color, area)
 
@@ -184,13 +192,11 @@ class IsometricTileRenderer(TileRendererProtocol):
     ):
         self.data = data
 
-        self._clear_color: ColorRGB | ColorRGBA | None
-
         if colorkey and alpha:
             raise ValueError("cannot select both colorkey and alpha")
 
         if colorkey:
-            self._clear_color = colorkey
+            self._clear_color: ColorRGB | ColorRGBA | None = colorkey
         elif alpha:
             self._clear_color = (0, 0, 0, 0)
         else:
@@ -201,7 +207,11 @@ class IsometricTileRenderer(TileRendererProtocol):
         return self._clear_color
 
     def queue_edge_tiles(
-        self, tile_view: Rect, dx: int, dy: int, buffer_surface: Surface
+        self,
+        tile_view: Rect,
+        dx: int,
+        dy: int,
+        buffer_surface: Surface,
     ) -> list[tuple[int, int, int, Surface]]:
         return []
 
@@ -213,7 +223,11 @@ class IsometricTileRenderer(TileRendererProtocol):
     ) -> None:
         return
 
-    def redraw_all(self, tile_view: Rect, buffer_surface: Surface) -> None:
+    def redraw_all(
+        self,
+        tile_view: Rect,
+        buffer_surface: Surface,
+    ) -> None:
         if self._clear_color is not None:
             buffer_surface.fill(self._clear_color)
 
@@ -221,23 +235,33 @@ class IsometricTileRenderer(TileRendererProtocol):
         twh = tw // 2
         thh = th // 2
 
-        blit = buffer_surface.blit
+        visible_layers = self.data.visible_tile_layers
+        get_tile_image = self.data.get_tile_image
+
+        blit_items: list[tuple[Surface, tuple[int, int]]] = []
 
         for x in range(tile_view.left, tile_view.right):
+            lx = x - tile_view.left
             for y in range(tile_view.top, tile_view.bottom):
-                lx = x - tile_view.left
                 ly = y - tile_view.top
 
                 iso_x = (lx - ly) * twh
                 iso_y = (lx + ly) * thh
 
-                for layer in self.data.visible_tile_layers:
-                    tile = self.data.get_tile_image(x, y, layer)
+                for layer in visible_layers:
+                    tile = get_tile_image(x, y, layer)
                     if tile:
-                        blit(tile, (iso_x, iso_y))
+                        blit_items.append((tile, (iso_x, iso_y)))
 
-    def clear_region(self, surface: Surface, area: RectLike | None = None) -> None:
+        if blit_items:
+            buffer_surface.blits(blit_items, doreturn=False)
+
+    def clear_region(
+        self,
+        surface: Surface,
+        area: RectLike | None = None,
+    ) -> None:
         clear_color = (
             self._clear_color if self._clear_color is not None else (0, 0, 0, 0)
         )
-        surface.fill(clear_color)
+        surface.fill(clear_color, area)
