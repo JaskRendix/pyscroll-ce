@@ -1,84 +1,86 @@
 # pyscroll‑ce
 
-For Python 3.10+ and pygame‑ce 2.5.6+
+For Python 3.10–3.12 and pygame‑ce 2.5.6+
 
-__pygame‑ce is supported__
+A module for fast scrolling maps in pygame‑ce.
 
-A simple and fast module for animated scrolling maps for your new or existing game.
-
-If you find this useful, please consider making a donation to help support development:  
-
-![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
-![License](https://img.shields.io/badge/license-GPL--3.0-green.svg)
+`https://img.shields.io/badge/python-3.10%E2%80%933.12-blue.svg`
+`https://img.shields.io/badge/license-GPL--3.0-green.svg`
 
 ---
 
 ## Introduction
 
-**pyscroll‑ce** is a maintained fork of the original `pyscroll` project.  
-The old repository has been inactive, with pull requests left unmerged for over a year, so this new repo was created to keep the project alive and compatible with modern Python and pygame‑ce.
+pyscroll‑ce is a maintained fork of the original `pyscroll` project.  
+The goal is compatibility with modern Python and pygame‑ce, plus continued development.
 
-pyscroll‑ce is a generic module for fast scrolling images with pygame. It uses clever optimizations to achieve high frame rates. Its sole purpose is to draw maps — it does not load images or data, so you can integrate it with your own data structures, tile storage, and rendering logic.
+pyscroll‑ce draws scrolling maps with high performance.  
+It does not load images or map data.  
+It integrates with pytmx or custom data sources.
 
-It is fully compatible with [pytmx](https://github.com/bitcraft/pytmx), allowing you to use maps created with the Tiled Map Editor. It also has out‑of‑the‑box support for pygame sprites.
+The module supports animated tiles, sprite layering, zoom, and multiple camera types.
 
 ---
 
 ## Features
 
-- Reload map tiles and data without restarting the game  
-- Draw sprites or plain surfaces in layers  
+- Reload map tiles and data without restarting  
+- Draw sprites or surfaces in layers  
 - Support for animated tiles  
-- Zoom in and out  
+- Zoom support  
 - Optional drop‑in replacement for `pygame.LayeredGroup`  
-- Pixel alpha and colorkey tilesets supported  
+- Pixel alpha and colorkey tilesets  
 - Draw and scroll shapes  
-- Fast and lightweight footprint  
-- Performance is independent of map size  
-- Direct support for pytmx‑loaded maps from Tiled
-- Camera system with smooth follow, zoom, bounds clamping, rails, cutscenes, and transitions
+- Performance independent of map size  
+- pytmx integration  
+- Camera subsystem with multiple camera types and transitions
 
 ---
 
-## Use It Like a Camera
+## Camera System
 
-pyscroll‑ce includes a pygame sprite group that renders all sprites on the map and correctly draws them above or below tiles. Sprites can use their rect in world coordinates, and the group acts like a camera, translating world coordinates to screen coordinates while rendering sprites and map layers.
-
-This makes it easy to implement minimaps or chunky retro‑style graphics.
+Cameras live in the `pyscroll.cameras` package.  
+The public API is re‑exported through `pyscroll.camera`.
 
 ### Available Cameras
 
 | Class | Description |
 |---|---|
-| `BasicCamera` | Simple smooth follow |
-| `FollowCamera` | Smooth follow with optional deadzone |
-| `PlatformerCamera` | Directional vertical deadzone for platformers |
-| `ZoomCamera` | Wraps any camera, adds smooth zoom |
-| `BoundsCamera` | Wraps any camera, clamps to world bounds |
-| `CutsceneCamera` | Autonomous movement along waypoints, linear or Catmull-Rom |
-| `SplitFollowCamera` | Follows midpoint of multiple targets, zooms with separation |
-| `RailCamera` | Constrained to a polyline rail |
-| `DebugFlyCamera` | Free movement via input, for development |
+| `BasicCamera` | Smooth follow |
+| `FollowCamera` | Smooth follow with deadzone |
+| `PlatformerCamera` | Vertical deadzone for platformers |
+| `ZoomCamera` | Wraps a camera, adds zoom |
+| `BoundsCamera` | Wraps a camera, clamps to world bounds |
+| `CutsceneCamera` | Waypoints, linear or Catmull–Rom |
+| `SplitFollowCamera` | Midpoint follow for multiple targets |
+| `RailCamera` | Movement constrained to a polyline |
+| `DebugFlyCamera` | Free movement for development |
 
-Use `CameraManager` to smoothly transition between any two cameras with a configurable duration.
+### CameraManager
+
+`CameraManager` transitions between cameras with a duration value.
+
+```python
+manager = CameraManager(FollowCamera())
+manager.set_camera(ZoomCamera(FollowCamera()), duration=1.0)
+pos = manager.update(view, target_rect, dt)
+```
+
+All camera classes are fully type‑annotated.
 
 ---
 
 ## Installation
 
-Install from pip:
+Not yet published to PyPI.
 
-```bash
-pip install pyscroll-ce # not yet published to PyPI
-```
-
-Or install from source (inside the project folder):
+Install from source:
 
 ```bash
 pip install .
 ```
 
-For development (editable install):
+Editable install:
 
 ```bash
 pip install -e .
@@ -86,104 +88,95 @@ pip install -e .
 
 ---
 
-## New Game Tutorial
+## Example with pytmx
 
-For a gentle introduction, open `apps/tutorial/quest.py`. It demonstrates how to use `PyscrollGroup` for efficient rendering.  
-The Quest demo shows how to draw maps with pytmx, render layers quickly, and handle sprite layering (e.g., the Hero being covered when moving under certain tiles).
-
----
-
-## Example Use with pytmx
 ```python
 import pygame
 from pytmx.util_pygame import load_pygame
 import pyscroll
-from pyscroll.camera import FollowCamera
+from pyscroll.camera import FollowCamera, CameraManager
 
 class Sprite(pygame.sprite.Sprite):
-    def __init__(self, surface) -> None:
+    def __init__(self, surface):
         super().__init__()
         self.image = surface
         self.rect = surface.get_rect()
 
 class Game:
-    def __init__(self, screen: pygame.Surface) -> None:
+    def __init__(self, screen):
         self.screen = screen
 
-        # Load TMX
-        tmx_data = load_pygame("desert.tmx")
-
-        # Create map renderer
-        map_data = pyscroll.TiledMapData(tmx_data)
+        tmx = load_pygame("desert.tmx")
+        map_data = pyscroll.TiledMapData(tmx)
         map_layer = pyscroll.BufferedRenderer(map_data, screen.get_size())
 
-        # Create group with map
         self.group = pyscroll.PyscrollGroup(map_layer=map_layer)
 
-        # Camera
-        self.camera = FollowCamera()
+        self.camera = CameraManager(FollowCamera())
 
-        # Add a sprite
         surface = pygame.image.load("my_surface.png").convert_alpha()
         self.hero = Sprite(surface)
         self.group.add(self.hero)
 
-    def update(self, dt: float) -> None:
+    def update(self, dt):
         self.group.update(dt)
-        new_center = self.camera.update(self.group.view, self.hero.rect, dt)
-        self.group.center(new_center)
+        center = self.camera.update(self.group.view, self.hero.rect, dt)
+        self.group.center(center)
 
-    def draw(self) -> None:
+    def draw(self):
         self.group.draw(self.screen)
 ```
 
 ---
 
-## Adapting Existing Games / Map Data
+## Integrating with Custom Map Data
 
-pyscroll‑ce can be integrated with existing map data. You may need to create an adapter class or adjust your data handler to match the `TiledMapData` API.
+pyscroll‑ce works with custom map structures.  
+Provide a data source that matches the `TiledMapData` interface.
 
-Example: rendering custom surfaces with layer positions.
+Example:
 
-```bash
+```python
 map_layer = pyscroll.BufferedRenderer(map_data, map_size)
 
-def game_engine_draw():
-    surfaces: list[Renderable] = []
-
-    for game_object in my_game_engine:
-        surfaces.append(
-            Renderable(
-                layer=game_object.layer,
-                rect=game_object.get_screen_rect(),
-                surface=game_object.get_surface(),
-                blendmode=None,
-            )
+surfaces = []
+for obj in engine_objects:
+    surfaces.append(
+        Renderable(
+            layer=obj.layer,
+            rect=obj.get_screen_rect(),
+            surface=obj.get_surface(),
+            blendmode=None,
         )
+    )
 
-    map_layer.draw(screen, screen.get_rect(), surfaces)
+map_layer.draw(screen, screen.get_rect(), surfaces)
 ```
 
 ---
 
 ## FAQ
 
-### Why are tiles repeating while scrolling?
-By default, pyscroll‑ce does not handle maps with completely empty areas (no tiles in any layer).  
-Solutions:
-1. Fill empty areas with a background tile in Tiled or your data.  
-2. Pass `alpha=True` to `BufferedRenderer` to enable per‑pixel alpha buffers (slower, ~33% performance reduction).
+### Tiles repeat while scrolling
+Empty map areas cause repetition.  
+Fill empty areas or enable per‑pixel alpha:
 
-### Why are there streaks when scrolling?
-Streaks are caused by missing tiles. See above for solutions.
+```python
+BufferedRenderer(map_data, size, alpha=True)
+```
 
-### Can I blit graphics under the scrolling map layer?
-Yes, but performance will be reduced. Options:
-1. Pass `alpha=True` to the constructor.  
-2. Use a colorkey (`colorkey=yourColor`).  
+### Streaks appear while scrolling
+Caused by missing tiles.  
+Fill empty areas or enable alpha.
 
-### Does the map layer support transparency?
-Yes, for tiles. For transparency under the map, use `alpha` or `colorkey` as described above.
+### Drawing under the map layer
+Possible but slower.  
+Use `alpha=True` or a colorkey.
 
-### Does pyscroll‑ce support parallax layers?
-Not directly. You can build parallax effects by using multiple renderers with `alpha=True` and scrolling them at different speeds.
+### Transparency support
+Tiles support transparency.  
+For transparency under the map, use alpha or colorkey.
+
+### Parallax layers
+Not built in.  
+Use multiple renderers at different scroll speeds.
