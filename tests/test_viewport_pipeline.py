@@ -15,8 +15,6 @@ class DummyViewport:
         # Track calls for delegation tests
         self.calls = []
 
-    # --- Delegated methods -------------------------------------------------
-
     def translate_point(self, point):
         self.calls.append(("translate_point", point))
         return (point[0] + 1, point[1] + 2)
