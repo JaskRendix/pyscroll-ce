@@ -1,6 +1,6 @@
-# Benchmark Results
+# **Benchmark Results**
 
-## Environment
+## **Environment**
 
 - Python: 3.12.3  
 - pygame‑ce: 2.5.6  
@@ -8,50 +8,50 @@
 
 ---
 
-## PyscrollGroup Benchmark
+## **PyscrollGroup Benchmark**
 
 ```
 Sprites: 5000
 Iterations: 200
-Total time: 1.9906s
-Avg per frame: 9.953 ms
-FPS equivalent: 100.5 FPS
-Culling benchmark: 0.6670580879999761
-Renderable creation: 0.1174s for 200000 instances
-spritedict update: 0.0022s for 5000 updates
+Total time: 1.9141s
+Avg per frame: 9.571 ms
+FPS equivalent: 104.5 FPS
+Culling benchmark: 0.7381282759999976
+Renderable creation: 0.1129s for 200000 instances
+spritedict update: 0.0010s for 5000 updates
 ```
 
 ---
 
-## FastQuadTree Benchmark
+## **FastQuadTree Benchmark**
 
 ```
 query_count=1000, depth=4
 
 1000 rects:
-  Build:       0.004811s
-  Quadtree:    0.032924s
-  Brute-force: 0.047972s
+  Build:       0.002643s
+  Quadtree:    0.021500s
+  Brute-force: 0.048527s
 
 5000 rects:
-  Build:       0.022712s
-  Quadtree:    0.105227s
-  Brute-force: 0.244694s
+  Build:       0.011974s
+  Quadtree:    0.065599s
+  Brute-force: 0.237466s
 
 10000 rects:
-  Build:       0.038267s
-  Quadtree:    0.185984s
-  Brute-force: 0.497932s
+  Build:       0.019520s
+  Quadtree:    0.116804s
+  Brute-force: 0.468596s
 
 20000 rects:
-  Build:       0.075629s
-  Quadtree:    0.358072s
-  Brute-force: 0.978913s
+  Build:       0.036437s
+  Quadtree:    0.228677s
+  Brute-force: 0.972469s
 ```
 
 ---
 
-## FastQuadTree Depth Benchmark
+## **FastQuadTree Depth Benchmark**
 
 ```
 Items:   5000
@@ -60,23 +60,23 @@ Depths:  2–6
 
 Depth |  Build (s) |  Query (s)
 --------------------------------
-    2 | 0.007437 | 0.052560
-    3 | 0.012848 | 0.047044
-    4 | 0.018877 | 0.070450
-    5 | 0.030667 | 0.108517
-    6 | 0.048340 | 0.192085
+    2 | 0.005775 | 0.050032
+    3 | 0.008210 | 0.053479
+    4 | 0.009274 | 0.055760
+    5 | 0.009052 | 0.057233
+    6 | 0.010362 | 0.050830
 ```
 
 ---
 
-## ViewPort Benchmark
+## **ViewPort Benchmark**
 
 ```
-center()                          2.184 µs per call
-translate_point()                 0.579 µs per call
-translate_rect()                  0.489 µs per call
-translate_points(32)             10.308 µs per call
-translate_rects(32)              14.039 µs per call
+center()                          2.293 µs per call
+translate_point()                 0.608 µs per call
+translate_rect()                  0.534 µs per call
+translate_points(32)             11.384 µs per call
+translate_rects(32)              14.737 µs per call
 ```
 
 ---
