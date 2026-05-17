@@ -216,3 +216,71 @@ def test_no_normalize(mock_data1):
     # Without normalization, negative offsets are preserved
     assert aggregator._min_x == 0  # never updated
     assert aggregator._min_y == 0
+
+
+def test_overlapping_maps_z_priority(aggregator, mock_data1, mock_data2):
+    # both maps cover same area
+    aggregator.add_map(mock_data1, (0, 0), layer=0)
+    aggregator.add_map(mock_data2, (0, 0), layer=10)
+
+    rect = Rect(0, 0, 5, 5)
+    tiles = list(aggregator.get_tile_images_by_rect(rect))
+
+    # highest z should appear last in draw order
+    layers = [layer for _, _, layer, _ in tiles]
+    assert layers[-1] >= 10
+
+
+def test_world_to_local_multiple_maps(aggregator, mock_data1, mock_data2):
+    mock_data1.visible_tile_layers = [0]
+    mock_data2.visible_tile_layers = [0]
+
+    aggregator.add_map(mock_data1, (0, 0), layer=0)
+    aggregator.add_map(mock_data2, (0, 0), layer=5)
+
+    # Use coordinates inside the 5x5 map area
+    result = aggregator.world_to_local(2, 3, 5)
+
+    assert result is not None
+    data, lx, ly, ll = result
+
+    assert data is mock_data2
+    assert lx == 2
+    assert ly == 3
+    assert ll == 0
+
+
+def test_remove_map_renormalizes(aggregator, mock_data1, mock_data2):
+    aggregator.add_map(mock_data1, (-5, -5))
+    aggregator.add_map(mock_data2, (10, 10))
+    aggregator.remove_map(mock_data1)
+
+    # After removal, min_x/min_y should reflect remaining maps
+    assert aggregator._min_x == 10
+    assert aggregator._min_y == 10
+
+
+def test_get_tile_images_partial_overlap_calls_only_needed_maps(
+    aggregator, mock_data1, mock_data2
+):
+    aggregator.add_map(mock_data1, (0, 0))
+    aggregator.add_map(mock_data2, (100, 100))
+
+    rect = Rect(0, 0, 20, 20)
+    list(aggregator.get_tile_images_by_rect(rect))
+
+    mock_data1.get_tile_images_by_rect.assert_called_once()
+    mock_data2.get_tile_images_by_rect.assert_not_called()
+
+
+def test_reload_animations_aggregates_all_children(aggregator, mock_data1, mock_data2):
+    mock_data1.get_animations.return_value = [(1, [(0, 100)])]
+    mock_data2.get_animations.return_value = [(2, [(0, 200)])]
+
+    aggregator.add_map(mock_data1, (0, 0))
+    aggregator.add_map(mock_data2, (0, 0))
+
+    aggregator.reload_animations()
+
+    assert set(aggregator._tracked_gids) == {1, 2}
+    assert len(aggregator._animation_queue) == 2

@@ -48,8 +48,6 @@ class PyscrollDataAdapter(ABC):
         self._animation_queue: list[AnimationToken] = []
         # mapping of tile substitutions when animated
         self._animated_tile: dict[tuple[int, int, int], Surface] = {}
-        # track the tiles on screen with animations
-        self._tracked_tiles = set()
         # Animation Control
         self._is_paused: bool = False
         self._last_time: float = 0.0
@@ -158,7 +156,7 @@ class PyscrollDataAdapter(ABC):
             heappush(self._animation_queue, token)
 
             # following line for when all gid positions are known
-            # for position in self._tracked_tiles & token.positions:
+            # for position in token.positions:
 
             for position in token.positions.copy():
                 x, y, layer = position  # actual tile layer
@@ -177,7 +175,8 @@ class PyscrollDataAdapter(ABC):
                             if image:
                                 new_tiles.append((x, y, tile_layer, image))
                 else:
-                    token.positions.remove(position)
+                    # keep position; skip drawing when off-screen
+                    continue
 
         return new_tiles
 
@@ -294,10 +293,11 @@ class PyscrollDataAdapter(ABC):
         """
         x1, y1, x2, y2 = rect_to_bb(view)
         for layer in self.visible_tile_layers:
-            for y, x in product(range(y1, y2 + 1), range(x1, x2 + 1)):
-                tile = self.get_tile_image(x, y, layer)
-                if tile:
-                    yield x, y, layer, tile
+            for x in range(x1, x2 + 1):
+                for y in range(y1, y2 + 1):
+                    tile = self.get_tile_image(x, y, layer)
+                    if tile:
+                        yield x, y, layer, tile
 
     def pause_animations(self) -> None:
         """
@@ -338,6 +338,7 @@ class TiledMapData(PyscrollDataAdapter):
     def __init__(self, tmx: pytmx.TiledMap) -> None:
         super().__init__()
         self.tmx = tmx
+        self._tracked_gids: set[int] = set()
         self.reload_animations()
 
     @property
@@ -474,7 +475,7 @@ class MapAggregator(PyscrollDataAdapter):
         Convert world coordinates (x, y, l) into the correct
         (data, local_x, local_y, local_layer) for the map that owns them.
         """
-        for data, rect, z in self.maps:
+        for data, rect, z in reversed(self.maps):  # check topmost first
             if rect.collidepoint(x, y):
                 local_x = x - rect.left
                 local_y = y - rect.top
