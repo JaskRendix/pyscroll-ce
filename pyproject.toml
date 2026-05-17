@@ -35,6 +35,11 @@ dependencies = [
 [project.urls]
 source = "https://github.com/JaskRendix/pyscroll-ce"
 
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+
 [tool.setuptools]
 include-package-data = true
 
