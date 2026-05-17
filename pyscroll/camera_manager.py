@@ -24,12 +24,10 @@ class CameraManager:
 
     @property
     def current_position(self) -> tuple[float, float] | None:
-        """Last known camera position. None until first update."""
         return self._last_position
 
     @property
     def is_transitioning(self) -> bool:
-        """True if a camera transition is currently in progress."""
         return self.next_cam is not None
 
     def set_camera(self, cam: BaseCamera, duration: float = 0.0) -> None:
@@ -52,8 +50,8 @@ class CameraManager:
             return pos
 
         # Update both cameras to keep internal state in sync
-        pos_a = Vector2(*self.current.update(current_view, target_rect, dt))
-        pos_b = Vector2(*self.next_cam.update(current_view, target_rect, dt))
+        ax, ay = self.current.update(current_view, target_rect, dt)
+        bx, by = self.next_cam.update(current_view, target_rect, dt)
 
         self.transition_time += dt
         t = min(self.transition_time / self.transition_duration, 1.0)
@@ -61,12 +59,14 @@ class CameraManager:
         # smoothstep
         t_smooth = t * t * (3.0 - 2.0 * t)
 
-        final_pos = pos_a.lerp(pos_b, t_smooth)
+        # tuple interpolation is faster than Vector2.lerp on your system
+        x = ax + (bx - ax) * t_smooth
+        y = ay + (by - ay) * t_smooth
 
         if t >= 1.0:
             self.current = self.next_cam
             self.next_cam = None
 
-        result = (final_pos.x, final_pos.y)
+        result = (x, y)
         self._last_position = result
         return result
