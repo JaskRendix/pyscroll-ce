@@ -142,31 +142,28 @@ def test_lostsprites_reset(group, map_layer, surface, sprite):
     assert group.lostsprites == []
 
 
-def test_draw_sprite_culled_outside_view(group, map_layer, surface, sprite):
-    sprite.rect = Rect(1000, 1000, 32, 32)
+@pytest.mark.parametrize(
+    "sprite_pos, expected_count",
+    [
+        (Rect(10, 10, 32, 32), 1),  # visible
+        (Rect(1000, 1000, 32, 32), 0),  # offscreen
+        (Rect(630, 470, 32, 32), 1),  # partially visible
+    ],
+)
+def test_draw_renderables_count(
+    group, map_layer, surface, sprite, sprite_pos, expected_count
+):
+    sprite.rect = sprite_pos
     group.add(sprite)
+
     map_layer.get_center_offset.return_value = (0, 0)
     map_layer.view_rect = Rect(0, 0, 640, 480)
-    map_layer.draw.return_value = []
-
-    group.draw(surface)
-
-    # draw was called but with empty renderables
-    _, _, renderables = map_layer.draw.call_args[0]
-    assert renderables == []
-
-
-def test_draw_sprite_visible_in_view(group, map_layer, surface, sprite):
-    sprite.rect = Rect(10, 10, 32, 32)
-    group.add(sprite)
-    map_layer.get_center_offset.return_value = (0, 0)
-    map_layer.view_rect = Rect(0, 0, 640, 480)
-    map_layer.draw.return_value = [sprite.rect]
+    map_layer.draw.return_value = [sprite.rect] if expected_count else []
 
     group.draw(surface)
 
     _, _, renderables = map_layer.draw.call_args[0]
-    assert len(renderables) == 1
+    assert len(renderables) == expected_count
 
 
 def test_draw_multiple_sprites(group, map_layer, surface):
