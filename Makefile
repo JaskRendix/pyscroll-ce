@@ -1,6 +1,14 @@
 PACKAGE_NAME := pyscroll
 
-.PHONY: build clean publish install lint fix format test all
+.PHONY: benchmark build clean publish install lint fix format test all
+
+benchmark:
+	@echo "Running all benchmarks in apps/scripts/"
+	@for file in apps/scripts/*benchmark*.py; do \
+		echo "----------------------------------------"; \
+		echo "Running $$file"; \
+		python $$file; \
+	done
 
 build:
 	python3 -m build
